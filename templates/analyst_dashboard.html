@@ -562,8 +562,9 @@ async function submitTextQuery() {
     }
     addHistory(q, 'text', activeDatasetId);
   } catch(e) {
-    document.getElementById('textAnswer').textContent = 'Error: ' + e.message;
-  }
+  console.error("Chart Load Error:", e);
+  showToast('error', 'Failed to load charts. Check backend error.');
+}
 }
 
 function redrawTextChart(type) {
@@ -578,6 +579,9 @@ function setQuery(q) { document.getElementById('textQuestion').value = q; }
 
 // ── All Charts ─────────────────────────────────────────────────────────────
 async function loadAllCharts() {
+  console.log("Active Dataset:", activeDatasetId);
+  const res = await fetch(`/api/reports/summary/${activeDatasetId}`);
+console.log("Response status:", res.status);
   if (!activeDatasetId) {
     showToast('error', 'Select a dataset first.');
     return;
