@@ -558,6 +558,24 @@ def api_voice_query():
 
 # ─── Reports API ──────────────────────────────────────────────────────────────
 
+import numpy as np
+
+def make_json_safe(obj):
+    if isinstance(obj, dict):
+        return {k: make_json_safe(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [make_json_safe(v) for v in obj]
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    else:
+        return obj
+
+
+
 @app.route("/api/reports/summary/<dataset_id>")
 @login_required
 @permission_required("export_report")
