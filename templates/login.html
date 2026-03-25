@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix Protocol — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #030a1a;
+    --panel:    #060f25;
+    --border:   #0d2545;
+    --accent1:  #00d4ff;
+    --accent2:  #ff6b35;
+    --accent3:  #7c3aed;
+    --text:     #c8deff;
+    --text-dim: #4a6fa5;
+    --glow:     0 0 20px rgba(0,212,255,0.4);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Rajdhani', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── Animated grid background ── */
+  .bg-grid {
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: gridMove 20s linear infinite;
+  }
+  @keyframes gridMove { to { background-position: 50px 50px; } }
+
+  /* ── Orb glows ── */
+  .orb { position: fixed; border-radius: 50%; filter: blur(80px); z-index: 0; }
+  .orb-1 { width:400px;height:400px;background:rgba(0,212,255,0.08);top:-100px;left:-100px;animation:pulse 6s ease-in-out infinite; }
+  .orb-2 { width:300px;height:300px;background:rgba(255,107,53,0.06);bottom:-50px;right:-50px;animation:pulse 8s ease-in-out infinite 2s; }
+  .orb-3 { width:200px;height:200px;background:rgba(124,58,237,0.08);top:50%;left:60%;animation:pulse 10s ease-in-out infinite 4s; }
+  @keyframes pulse { 0%,100%{transform:scale(1);opacity:0.6} 50%{transform:scale(1.2);opacity:1} }
+
+  /* ── Split layout ── */
+  .left-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 60px;
+    position: relative;
+    z-index: 1;
+    border-right: 1px solid var(--border);
+  }
+  .right-panel {
+    width: 480px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Brand ── */
+  .brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 48px;
+  }
+  .logo-icon {
+    width: 48px;
+    height: 48px;
+    position: relative;
+  }
+  .logo-icon svg { width: 100%; height: 100%; }
+  .brand-text { font-family: 'Orbitron', monospace; }
+  .brand-name { font-size: 22px; font-weight: 900; color: var(--accent1); letter-spacing: 2px; }
+  .brand-sub  { font-size: 11px; color: var(--text-dim); letter-spacing: 3px; }
+
+  .hero-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(28px, 4vw, 52px);
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 24px;
+  }
+  .hero-title span { color: var(--accent1); }
+  .hero-title .orange { color: var(--accent2); }
+
+  .hero-desc { font-size: 16px; color: var(--text-dim); line-height: 1.8; max-width: 520px; margin-bottom: 48px; }
+
+  /* ── Feature badges ── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: 500px;
+  }
+  .feature-badge {
+    background: rgba(0,212,255,0.04);
+    border: 1px solid rgba(0,212,255,0.15);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-dim);
+    transition: all 0.3s;
+  }
+  .feature-badge:hover { border-color: var(--accent1); color: var(--text); }
+  .feature-badge .icon { font-size: 20px; }
+
+  /* ── Login card ── */
+  .login-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .login-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent1), var(--accent3), var(--accent2));
+  }
+
+  .card-header { margin-bottom: 32px; }
+  .card-title  { font-family: 'Orbitron', monospace; font-size: 20px; font-weight: 700; color: var(--accent1); margin-bottom: 6px; }
+  .card-sub    { font-size: 13px; color: var(--text-dim); }
+
+  /* ── Role selector ── */
+  .role-selector { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 24px; }
+  .role-btn {
+    padding: 10px 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+  .role-btn .role-icon { display: block; font-size: 20px; margin-bottom: 4px; }
+  .role-btn:hover, .role-btn.active {
+    border-color: var(--accent1);
+    background: rgba(0,212,255,0.08);
+    color: var(--accent1);
+    box-shadow: var(--glow);
+  }
+
+  /* ── Form ── */
+  .form-group { margin-bottom: 20px; }
+  .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 8px; }
+  .form-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(0,212,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    outline: none;
+    transition: all 0.3s;
+  }
+  .form-input:focus { border-color: var(--accent1); box-shadow: 0 0 0 3px rgba(0,212,255,0.1); }
+  .form-input::placeholder { color: var(--text-dim); }
+
+  .btn-login {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--accent1), var(--accent3));
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,212,255,0.4); }
+  .btn-login:active { transform: translateY(0); }
+  .btn-login.loading { opacity: 0.7; cursor: not-allowed; }
+
+  .error-msg {
+    background: rgba(255,50,50,0.1);
+    border: 1px solid rgba(255,50,50,0.3);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #ff6b6b;
+    margin-top: 16px;
+    display: none;
+  }
+
+  /* ── Demo credentials ── */
+  .demo-creds {
+    margin-top: 24px;
+    padding: 16px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .demo-creds h4 { font-size: 11px; color: var(--text-dim); letter-spacing: 2px; margin-bottom: 10px; }
+  .cred-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  .cred-item:last-child { border-bottom: none; }
+  .cred-item:hover { background: rgba(0,212,255,0.05); border-radius: 4px; padding: 6px 6px; }
+  .cred-role { font-size: 12px; font-weight: 600; }
+  .cred-role.loader  { color: #00d4ff; }
+  .cred-role.analyst { color: #7c3aed; }
+  .cred-role.admin   { color: #ff6b35; }
+  .cred-details { font-size: 11px; color: var(--text-dim); }
+  .cred-hint { font-size: 10px; color: #2a4060; margin-left: 8px; }
+
+  /* ── System status ── */
+  .sys-status { display: flex; gap: 12px; margin-top: 40px; }
+  .status-dot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #00ff88; animation: blink 2s infinite; }
+  .dot.orange { background: var(--accent2); animation-delay: 0.5s; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  @media (max-width: 900px) {
+    body { flex-direction: column; }
+    .left-panel { display: none; }
+    .right-panel { width: 100%; padding: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<!-- LEFT PANEL -->
+<div class="left-panel">
+  <div class="brand-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="24,4 44,36 4,36" fill="none" stroke="#00d4ff" stroke-width="2.5"/>
+        <polygon points="24,14 36,34 12,34" fill="rgba(0,212,255,0.15)" stroke="#00d4ff" stroke-width="1"/>
+        <circle cx="24" cy="24" r="4" fill="#ff6b35"/>
+        <line x1="24" y1="4" x2="24" y2="44" stroke="rgba(0,212,255,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <div class="brand-name">PHOENIX</div>
+      <div class="brand-sub">PROTOCOL</div>
+    </div>
+  </div>
+
+  <div class="hero-title">
+    Endgame<br>Resilience for<br><span>Global</span> <span class="orange">E-Commerce</span>
+  </div>
+  <p class="hero-desc">
+    Enterprise-grade AWS architecture delivering 99.99% uptime with active/passive multi-region failover, 
+    voice-powered analytics, and real-time intelligence for global commerce.
+  </p>
+
+  <div class="feature-grid">
+    <div class="feature-badge"><span class="icon">🌐</span> Multi-Region HA</div>
+    <div class="feature-badge"><span class="icon">🎙️</span> Voice Analytics</div>
+    <div class="feature-badge"><span class="icon">📊</span> Live Dashboards</div>
+    <div class="feature-badge"><span class="icon">🔒</span> WAF + IAM Security</div>
+    <div class="feature-badge"><span class="icon">⚡</span> ElastiCache Redis</div>
+    <div class="feature-badge"><span class="icon">🚀</span> Auto Scaling EC2</div>
+  </div>
+
+  <div class="sys-status">
+    <span class="status-dot"><span class="dot"></span> Primary Region: Active</span>
+    <span class="status-dot"><span class="dot orange"></span> Failover: Standby</span>
+    <span class="status-dot"><span class="dot"></span> CloudFront: Live</span>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="right-panel">
+  <div class="login-card">
+    <div class="card-header">
+      <div class="card-title">AUTHENTICATE</div>
+      <div class="card-sub">Select your role to access the platform</div>
+    </div>
+
+    <div class="role-selector">
+      <button class="role-btn active" onclick="selectRole('loader', this)" id="role-loader">
+        <span class="role-icon">📤</span>Data Loader
+      </button>
+      <button class="role-btn" onclick="selectRole('analyst', this)" id="role-analyst">
+        <span class="role-icon">📈</span>Analyst
+      </button>
+      <button class="role-btn" onclick="selectRole('admin', this)" id="role-admin">
+        <span class="role-icon">👑</span>Admin
+      </button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">EMAIL ADDRESS</label>
+      <input class="form-input" type="email" id="email" placeholder="enter your email" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label class="form-label">PASSWORD</label>
+      <input class="form-input" type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+
+    <button class="btn-login" id="loginBtn" onclick="doLogin()">ENTER SYSTEM</button>
+    <div class="error-msg" id="errorMsg"></div>
+
+    <!-- Demo credentials -->
+    <div class="demo-creds">
+      <h4>DEMO CREDENTIALS — CLICK TO FILL</h4>
+      <div class="cred-item" onclick="fillCreds('loader@phoenix.com','loader123','loader')">
+        <span class="cred-role loader">📤 DATA LOADER</span>
+        <span class="cred-details">loader@phoenix.com / loader123</span>
+      </div>
+      <div class="cred-item" onclick="fillCreds('analyst@phoenix.com','analyst123','analyst')">
+        <span class="cred-role analyst">📈 ANALYST</span>
+        <span class="cred-details">analyst@phoenix.com / analyst123</span>
+      </div>
+      <div class="cred-item" onclick="fillCreds('admin@phoenix.com','admin123','admin')">
+        <span class="cred-role admin">👑 ADMIN</span>
+        <span class="cred-details">admin@phoenix.com / admin123</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const ROLE_MAP = {
+    loader:  'loader@phoenix.com',
+    analyst: 'analyst@phoenix.com',
+    admin:   'admin@phoenix.com'
+  };
+
+  function selectRole(role, btn) {
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const email = ROLE_MAP[role] || '';
+    document.getElementById('email').value = email;
+    document.getElementById('password').value = '';
+    document.getElementById('password').focus();
+  }
+
+  function fillCreds(email, pwd, role) {
+    document.getElementById('email').value = email;
+    document.getElementById('password').value = pwd;
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById('role-' + role);
+    if (btn) btn.classList.add('active');
+  }
+
+  document.getElementById('password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  async function doLogin() {
+    const email = document.getElementById('email').value.trim();
+    const pwd   = document.getElementById('password').value;
+    const btn   = document.getElementById('loginBtn');
+    const err   = document.getElementById('errorMsg');
+
+    err.style.display = 'none';
+    if (!email || !pwd) { showError('Please enter email and password.'); return; }
+
+    btn.textContent = 'AUTHENTICATING...';
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    try {
+      const res  = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pwd })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        btn.textContent = 'ACCESS GRANTED ✓';
+        btn.style.background = 'linear-gradient(135deg, #00ff88, #00d4ff)';
+        setTimeout(() => window.location.href = data.redirect || '/dashboard', 800);
+      } else {
+        showError(data.error || 'Authentication failed.');
+        btn.textContent = 'ENTER SYSTEM';
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    } catch (e) {
+      showError('Connection error. Please try again.');
+      btn.textContent = 'ENTER SYSTEM';
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  function showError(msg) {
+    const err = document.getElementById('errorMsg');
+    err.textContent = msg;
+    err.style.display = 'block';
+  }
+
+  // Pre-fill loader creds
+  window.addEventListener('load', () => {
+    document.getElementById('email').value = 'loader@phoenix.com';
+  });
+</script>
+</body>
+</html>

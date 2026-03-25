@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix Protocol — Analyst</title>
+<link rel="stylesheet" href="/static/css/dashboard.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="logo-row">
+      <div class="logo-diamond"><span>📊</span></div>
+      <div>
+        <div class="brand-name">PHOENIX</div>
+        <div class="brand-tagline">ANALYST CONSOLE</div>
+      </div>
+    </div>
+    <div class="user-card">
+      <div class="user-name" id="sideUserName">Analyst</div>
+      <div class="user-role role-analyst">📈 ANALYST</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-title">ANALYTICS</div>
+    <div class="nav-item active" onclick="showPage('voice', this)">
+      <span class="nav-icon">🎙️</span> Voice Query
+    </div>
+    <div class="nav-item" onclick="showPage('text', this)">
+      <span class="nav-icon">💬</span> Text Query
+    </div>
+    <div class="nav-item" onclick="showPage('charts', this)">
+      <span class="nav-icon">📊</span> Charts
+    </div>
+    <div class="nav-section-title">REPORTS</div>
+    <div class="nav-item" onclick="showPage('report', this)">
+      <span class="nav-icon">📋</span> Summary Report
+    </div>
+    <div class="nav-item" onclick="showPage('history', this)">
+      <span class="nav-icon">🕐</span> Query History
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <button class="logout-btn" onclick="doLogout()">⬡ SIGN OUT</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">INTELLIGENCE CONSOLE</div>
+    <div class="topbar-right">
+      <select class="form-select" id="globalDatasetSelect" style="width:220px;padding:6px 12px;font-size:12px;" onchange="setActiveDataset(this.value)">
+        <option value="">⏳ No dataset loaded</option>
+      </select>
+      <div class="status-chip"><span class="dot dot-green"></span> ElastiCache Active</div>
+      <div class="status-chip"><span class="dot dot-green"></span> Polly Ready</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ═══ VOICE QUERY PAGE ═══ -->
+    <div id="page-voice" class="page active">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+
+        <!-- Voice Panel -->
+        <div class="card">
+          <div class="card-head">
+            <h3>🎙️ VOICE INTELLIGENCE</h3>
+            <span class="badge badge-blue">Amazon Polly + WebSpeech</span>
+          </div>
+          <div class="card-body" style="text-align:center;">
+            <div style="margin-bottom:24px;">
+              <div id="voiceStatus" style="font-size:14px;color:var(--text-dim);margin-bottom:20px;height:20px;">
+                Press the microphone and speak your question
+              </div>
+              <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()">🎙️</button>
+            </div>
+
+            <div id="transcriptBox" style="display:none;padding:12px 16px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.3);border-radius:8px;margin-bottom:16px;font-size:14px;color:#a78bfa;text-align:left;">
+              <span style="font-size:11px;color:var(--text-dim);letter-spacing:1px;display:block;margin-bottom:4px;">YOU SAID:</span>
+              <span id="transcriptText"></span>
+            </div>
+
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;" id="quickQuestions">
+              <button class="quick-q" onclick="askQuick('What is the total revenue?')">💰 Total Revenue</button>
+              <button class="quick-q" onclick="askQuick('Show me the top 5 performing categories')">🏆 Top 5</button>
+              <button class="quick-q" onclick="askQuick('What is the sales trend over time?')">📈 Trend</button>
+              <button class="quick-q" onclick="askQuick('Show distribution breakdown')">📊 Distribution</button>
+              <button class="quick-q" onclick="askQuick('What is the average order value?')">⚖️ Average</button>
+              <button class="quick-q" onclick="askQuick('Give me a complete summary')">📋 Summary</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Answer Panel -->
+        <div class="card">
+          <div class="card-head">
+            <h3>🤖 AI RESPONSE</h3>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary btn-sm" id="speakBtn" onclick="speakAnswer()" style="display:none;">🔊 Speak</button>
+              <button class="btn btn-secondary btn-sm" onclick="clearAnswer()">✕ Clear</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="answer-panel" id="answerPanel">
+              Ask me anything about your data using voice or the quick buttons. I'll analyze the dataset and provide instant insights.
+            </div>
+            <div id="answerLoading" style="display:none;margin-top:12px;display:none;align-items:center;gap:12px;">
+              <div class="spinner"></div>
+              <span style="color:var(--text-dim);font-size:13px;">Analyzing with AI...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart Display -->
+      <div class="card" id="voiceChartCard" style="display:none;">
+        <div class="card-head">
+          <h3>📊 ANALYSIS VISUALIZATION</h3>
+          <div style="display:flex;gap:8px;">
+            <select class="form-select" id="chartTypeToggle" style="width:130px;padding:6px;" onchange="redrawChart(this.value)">
+              <option value="bar">Bar Chart</option>
+              <option value="line">Line Chart</option>
+              <option value="pie">Pie Chart</option>
+              <option value="doughnut">Doughnut</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="exportChart()">⬇ Export</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="voiceChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TEXT QUERY PAGE ═══ -->
+    <div id="page-text" class="page">
+      <div class="card">
+        <div class="card-head">
+          <h3>💬 TEXT QUERY ENGINE</h3>
+          <span class="badge badge-blue">Natural Language Analysis</span>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;gap:12px;margin-bottom:16px;">
+            <input class="form-input" id="textQuestion" placeholder="e.g. What is the total revenue by region?" onkeydown="if(event.key==='Enter') submitTextQuery()">
+            <button class="btn btn-primary" onclick="submitTextQuery()" style="white-space:nowrap;">▶ ANALYZE</button>
+          </div>
+          <div style="margin-bottom:16px;">
+            <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px;">SUGGESTED QUERIES:</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <span class="query-chip" onclick="setQuery('What is the total revenue?')">Total Revenue</span>
+              <span class="query-chip" onclick="setQuery('Show top 10 best performing products')">Top Products</span>
+              <span class="query-chip" onclick="setQuery('What is the sales trend over time?')">Sales Trend</span>
+              <span class="query-chip" onclick="setQuery('Count of orders by category')">Order Count</span>
+              <span class="query-chip" onclick="setQuery('What is the average order value?')">Avg Order Value</span>
+              <span class="query-chip" onclick="setQuery('Give me a complete summary of the dataset')">Full Summary</span>
+            </div>
+          </div>
+          <div class="answer-panel" id="textAnswer" style="min-height:120px;">Your analysis results will appear here...</div>
+        </div>
+      </div>
+
+      <!-- Chart for text query -->
+      <div class="card" id="textChartCard" style="display:none;">
+        <div class="card-head">
+          <h3>📊 RESULT CHART</h3>
+          <select class="form-select" id="textChartType" style="width:130px;padding:6px;" onchange="redrawTextChart(this.value)">
+            <option value="bar">Bar</option>
+            <option value="line">Line</option>
+            <option value="pie">Pie</option>
+            <option value="doughnut">Doughnut</option>
+          </select>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="textChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ CHARTS PAGE ═══ -->
+    <div id="page-charts" class="page">
+      <div class="stats-grid">
+        <div class="stat-card blue">
+          <div class="stat-label">DATASET ROWS</div>
+          <div class="stat-value" id="chartStatRows">—</div>
+          <div class="stat-sub">Total records</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-label">COLUMNS</div>
+          <div class="stat-value" id="chartStatCols">—</div>
+          <div class="stat-sub">Data dimensions</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">NUMERIC COLS</div>
+          <div class="stat-value" id="chartStatNum">—</div>
+          <div class="stat-sub">Analysable fields</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-label">CATEGORIES</div>
+          <div class="stat-value" id="chartStatCat">—</div>
+          <div class="stat-sub">Text dimensions</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <div class="card-head"><h3>📊 REVENUE BREAKDOWN</h3></div>
+          <div class="card-body"><div class="chart-container"><canvas id="chart1"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>📈 TREND ANALYSIS</h3></div>
+          <div class="card-body"><div class="chart-container"><canvas id="chart2"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>🥧 DISTRIBUTION</h3></div>
+          <div class="card-body"><div class="chart-container"><canvas id="chart3"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>⚡ TOP PERFORMERS</h3></div>
+          <div class="card-body"><div class="chart-container"><canvas id="chart4"></canvas></div></div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:20px;">
+        <button class="btn btn-primary" onclick="loadAllCharts()">↺ REFRESH CHARTS</button>
+      </div>
+    </div>
+
+    <!-- ═══ REPORT PAGE ═══ -->
+    <div id="page-report" class="page">
+      <div class="card">
+        <div class="card-head">
+          <h3>📋 SUMMARY REPORT</h3>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="loadReport()">↺ Generate</button>
+            <button class="btn btn-primary btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
+          </div>
+        </div>
+        <div class="card-body" id="reportBody">
+          <div style="text-align:center;color:var(--text-dim);padding:32px;">Click "Generate" to build your report</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ HISTORY PAGE ═══ -->
+    <div id="page-history" class="page">
+      <div class="card">
+        <div class="card-head">
+          <h3>🕐 QUERY HISTORY</h3>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <table class="data-table">
+            <thead>
+              <tr><th>TIME</th><th>QUESTION</th><th>TYPE</th><th>DATASET</th></tr>
+            </thead>
+            <tbody id="historyBody">
+              <tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:32px;">No queries yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<div class="toast-container" id="toastContainer"></div>
+
+<style>
+.quick-q {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(124,58,237,0.3);
+  background: rgba(124,58,237,0.08);
+  color: #a78bfa;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+.quick-q:hover {
+  background: rgba(124,58,237,0.2);
+  border-color: #a78bfa;
+  transform: translateY(-1px);
+}
+.query-chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border2);
+  background: rgba(0,212,255,0.04);
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.query-chip:hover { border-color: var(--accent1); color: var(--accent1); }
+</style>
+
+<script>
+let activeDatasetId = '';
+let voiceChartInstance = null;
+let textChartInstance  = null;
+let chartInstances     = {};
+let lastChartData      = null;
+let queryHistory       = [];
+let isRecording        = false;
+let recognition        = null;
+
+// ── Init ───────────────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  try {
+    const res  = await fetch('/api/auth/me');
+    const user = await res.json();
+    document.getElementById('sideUserName').textContent = user.name;
+  } catch(e) {}
+  await loadDatasetList();
+});
+
+async function loadDatasetList() {
+  try {
+    const res  = await fetch('/api/data/datasets');
+    const data = await res.json();
+    const sel  = document.getElementById('globalDatasetSelect');
+    const list = data.datasets || [];
+    if (list.length === 0) {
+      sel.innerHTML = '<option value="">⏳ No datasets — ask loader to upload</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">Select dataset...</option>' +
+      list.map(d => `<option value="${d.dataset_id}">${d.name} (${d.rows} rows)</option>`).join('');
+    activeDatasetId = list[list.length - 1].dataset_id;
+    sel.value = activeDatasetId;
+  } catch(e) {}
+}
+
+function setActiveDataset(id) { activeDatasetId = id; }
+
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'charts') loadAllCharts();
+}
+
+// ── Voice Recording ────────────────────────────────────────────────────────
+function toggleRecording() {
+  if (isRecording) stopRecording();
+  else startRecording();
+}
+
+function startRecording() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    showToast('error', 'Voice not supported in this browser. Use Chrome.');
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.lang         = 'en-US';
+  recognition.continuous   = false;
+  recognition.interimResults = true;
+
+  recognition.onstart = () => {
+    isRecording = true;
+    document.getElementById('voiceBtn').classList.add('recording');
+    document.getElementById('voiceBtn').textContent = '⏹️';
+    document.getElementById('voiceStatus').textContent = '🔴 Listening... speak now';
+    document.getElementById('voiceStatus').style.color = '#ff4757';
+  };
+
+  recognition.onresult = (e) => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+    document.getElementById('transcriptBox').style.display = 'block';
+    document.getElementById('transcriptText').textContent  = transcript;
+    if (e.results[e.results.length-1].isFinal) {
+      submitVoiceQuery(transcript);
+    }
+  };
+
+  recognition.onerror = () => {
+    stopRecording();
+    showToast('error', 'Voice recognition error. Try again.');
+  };
+
+  recognition.onend = () => stopRecording();
+  recognition.start();
+}
+
+function stopRecording() {
+  isRecording = false;
+  if (recognition) recognition.stop();
+  document.getElementById('voiceBtn').classList.remove('recording');
+  document.getElementById('voiceBtn').textContent = '🎙️';
+  document.getElementById('voiceStatus').textContent = 'Press the microphone and speak your question';
+  document.getElementById('voiceStatus').style.color = '';
+}
+
+function askQuick(q) {
+  document.getElementById('transcriptBox').style.display = 'block';
+  document.getElementById('transcriptText').textContent  = q;
+  submitVoiceQuery(q);
+}
+
+async function submitVoiceQuery(transcript) {
+  setAnswerLoading(true);
+  try {
+    const res  = await fetch('/api/voice/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript, dataset_id: activeDatasetId })
+    });
+    const data = await res.json();
+    setAnswerLoading(false);
+    showAnswer(data.answer, 'answerPanel');
+    if (data.chart_data) {
+      renderVoiceChart(data.chart_data, data.chart_type || 'bar');
+      lastChartData = { data: data.chart_data, type: data.chart_type };
+      document.getElementById('chartTypeToggle').value = data.chart_type || 'bar';
+    }
+    document.getElementById('speakBtn').style.display = 'block';
+    addHistory(transcript, 'voice', activeDatasetId);
+    speakWithPolly(data.answer);
+  } catch(e) {
+    setAnswerLoading(false);
+    showAnswer('Error: ' + e.message, 'answerPanel');
+  }
+}
+
+function setAnswerLoading(show) {
+  document.getElementById('answerLoading').style.display = show ? 'flex' : 'none';
+}
+
+function showAnswer(text, id) {
+  document.getElementById(id).textContent = text;
+}
+
+function clearAnswer() {
+  document.getElementById('answerPanel').textContent = 'Ask me anything about your data...';
+  document.getElementById('transcriptBox').style.display = 'none';
+  document.getElementById('voiceChartCard').style.display = 'none';
+  document.getElementById('speakBtn').style.display = 'none';
+}
+
+// ── Polly TTS ──────────────────────────────────────────────────────────────
+async function speakWithPolly(text) {
+  try {
+    const res  = await fetch('/api/voice/synthesize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.replace(/[*#•]/g, '').substring(0, 300) })
+    });
+    const data = await res.json();
+    if (data.audio_base64) {
+      const audio = new Audio('data:audio/mp3;base64,' + data.audio_base64);
+      audio.play();
+    } else {
+      browserTTS(text);
+    }
+  } catch(e) {
+    browserTTS(text);
+  }
+}
+
+function browserTTS(text) {
+  const clean = text.replace(/[*#•📊📈📋🏆💰⚖️]/g, '').substring(0, 400);
+  const utterance = new SpeechSynthesisUtterance(clean);
+  utterance.lang  = 'en-US';
+  utterance.rate  = 0.9;
+  speechSynthesis.speak(utterance);
+}
+
+function speakAnswer() {
+  const text = document.getElementById('answerPanel').textContent;
+  speakWithPolly(text);
+}
+
+// ── Chart Rendering ────────────────────────────────────────────────────────
+const COLORS = ['#00d4ff','#ff6b35','#7c3aed','#00ff88','#ffa502','#ff6b81','#2ed573','#eccc68'];
+
+function renderVoiceChart(chartData, type) {
+  const card = document.getElementById('voiceChartCard');
+  card.style.display = 'block';
+  if (voiceChartInstance) voiceChartInstance.destroy();
+  const ctx = document.getElementById('voiceChart').getContext('2d');
+  voiceChartInstance = buildChart(ctx, chartData, type);
+}
+
+function redrawChart(type) {
+  if (!lastChartData) return;
+  renderVoiceChart(lastChartData.data, type);
+}
+
+function buildChart(ctx, data, type) {
+  const isPie = ['pie','doughnut'].includes(type);
+  return new Chart(ctx, {
+    type,
+    data: {
+      labels: data.labels,
+      datasets: data.datasets.map((ds, i) => ({
+        ...ds,
+        backgroundColor: isPie ? COLORS : (COLORS[i % COLORS.length] + '33'),
+        borderColor:     isPie ? COLORS.map(c => c) : COLORS[i % COLORS.length],
+        borderWidth: 2,
+        tension: 0.4,
+        fill: !isPie
+      }))
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#c8deff', font: { family: 'Rajdhani', size: 12 } } }
+      },
+      scales: isPie ? {} : {
+        x: { ticks: { color: '#4a6fa5' }, grid: { color: '#0c2040' } },
+        y: { ticks: { color: '#4a6fa5' }, grid: { color: '#0c2040' } }
+      }
+    }
+  });
+}
+
+function exportChart() {
+  const canvas = document.getElementById('voiceChart');
+  const link   = document.createElement('a');
+  link.download = 'phoenix_chart.png';
+  link.href     = canvas.toDataURL();
+  link.click();
+}
+
+// ── Text Query ─────────────────────────────────────────────────────────────
+async function submitTextQuery() {
+  const q = document.getElementById('textQuestion').value.trim();
+  if (!q) return;
+  document.getElementById('textAnswer').textContent = '⏳ Analyzing...';
+  try {
+    const res  = await fetch('/api/query/text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q, dataset_id: activeDatasetId })
+    });
+    const data = await res.json();
+    document.getElementById('textAnswer').textContent = data.answer || data.error;
+    if (data.chart_data) {
+      const card = document.getElementById('textChartCard');
+      card.style.display = 'block';
+      if (textChartInstance) textChartInstance.destroy();
+      const ctx = document.getElementById('textChart').getContext('2d');
+      textChartInstance = buildChart(ctx, data.chart_data, data.chart_type || 'bar');
+      document.getElementById('textChartType').value = data.chart_type || 'bar';
+    }
+    addHistory(q, 'text', activeDatasetId);
+  } catch(e) {
+    document.getElementById('textAnswer').textContent = 'Error: ' + e.message;
+  }
+}
+
+function redrawTextChart(type) {
+  if (!textChartInstance) return;
+  const data = textChartInstance.data;
+  textChartInstance.destroy();
+  const ctx = document.getElementById('textChart').getContext('2d');
+  textChartInstance = buildChart(ctx, { labels: data.labels, datasets: data.datasets }, type);
+}
+
+function setQuery(q) { document.getElementById('textQuestion').value = q; }
+
+// ── All Charts ─────────────────────────────────────────────────────────────
+async function loadAllCharts() {
+  if (!activeDatasetId) {
+    showToast('error', 'Select a dataset first.');
+    return;
+  }
+  try {
+    const res  = await fetch(`/api/reports/summary/${activeDatasetId}`);
+    const rpt  = await res.json();
+
+    const prev = await fetch(`/api/data/preview/${activeDatasetId}`);
+    const pdata = await prev.json();
+
+    document.getElementById('chartStatRows').textContent = (rpt.total_rows||0).toLocaleString();
+    document.getElementById('chartStatCols').textContent = rpt.total_columns||0;
+    const numKeys = Object.keys(rpt.numeric_summary||{});
+    const catKeys = Object.keys(rpt.text_summary||{});
+    document.getElementById('chartStatNum').textContent  = numKeys.length;
+    document.getElementById('chartStatCat').textContent  = catKeys.length;
+
+    // Chart 1 — bar of numeric cols summary
+    if (numKeys.length > 0) {
+      const vals = numKeys.map(k => rpt.numeric_summary[k].sum);
+      drawStaticChart('chart1', {labels:numKeys, datasets:[{label:'Total',data:vals}]}, 'bar');
+    }
+
+    // Chart 2 — line mock
+    if (numKeys.length > 0) {
+      const col  = numKeys[0];
+      const rows = pdata.preview || [];
+      const vals = rows.map(r => parseFloat(r[col])||0);
+      drawStaticChart('chart2', {
+        labels:   rows.map((_,i)=>'Row '+(i+1)),
+        datasets: [{label:col,data:vals}]
+      }, 'line');
+    }
+
+    // Chart 3 — pie of text col
+    if (catKeys.length > 0) {
+      const col = catKeys[0];
+      const s   = rpt.text_summary[col];
+      drawStaticChart('chart3', {
+        labels: [s.top_value,'Others'],
+        datasets:[{label:col,data:[s.top_count, (rpt.total_rows-s.top_count)]}]
+      }, 'pie');
+    }
+
+    // Chart 4 — bar sorted
+    if (numKeys.length > 0) {
+      const sorted = numKeys.map(k => ({ k, v: rpt.numeric_summary[k].mean })).sort((a,b)=>b.v-a.v);
+      drawStaticChart('chart4', {
+        labels:   sorted.map(s=>s.k),
+        datasets: [{label:'Mean',data:sorted.map(s=>s.v)}]
+      }, 'bar');
+    }
+  } catch(e) {
+    showToast('error', 'Could not load charts. Select a dataset first.');
+  }
+}
+
+function drawStaticChart(canvasId, data, type) {
+  if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  chartInstances[canvasId] = buildChart(ctx, data, type);
+}
+
+// ── Report ─────────────────────────────────────────────────────────────────
+async function loadReport() {
+  if (!activeDatasetId) { showToast('error','Select a dataset first'); return; }
+  const body = document.getElementById('reportBody');
+  body.innerHTML = '<div style="display:flex;gap:12px;align-items:center;"><div class="spinner"></div> Generating report...</div>';
+  try {
+    const res  = await fetch(`/api/reports/summary/${activeDatasetId}`);
+    const data = await res.json();
+    let html   = `
+      <div style="display:grid;gap:16px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+          <div class="stat-card blue"><div class="stat-label">TOTAL ROWS</div><div class="stat-value">${(data.total_rows||0).toLocaleString()}</div></div>
+          <div class="stat-card orange"><div class="stat-label">COLUMNS</div><div class="stat-value">${data.total_columns||0}</div></div>
+          <div class="stat-card green"><div class="stat-label">GENERATED</div><div class="stat-value" style="font-size:13px;padding-top:8px;">${new Date(data.generated_at).toLocaleTimeString()}</div></div>
+        </div>`;
+
+    if (Object.keys(data.numeric_summary||{}).length) {
+      html += '<div class="card"><div class="card-head"><h3>📊 NUMERIC COLUMNS</h3></div><div class="card-body" style="padding:0;"><table class="data-table"><thead><tr><th>COLUMN</th><th>SUM</th><th>MEAN</th><th>MIN</th><th>MAX</th><th>STD</th></tr></thead><tbody>';
+      for (const [col, s] of Object.entries(data.numeric_summary)) {
+        html += `<tr><td>${col}</td><td>${s.sum.toLocaleString()}</td><td>${s.mean.toFixed(2)}</td><td>${s.min}</td><td>${s.max}</td><td>${s.std.toFixed(2)}</td></tr>`;
+      }
+      html += '</tbody></table></div></div>';
+    }
+
+    if (Object.keys(data.text_summary||{}).length) {
+      html += '<div class="card"><div class="card-head"><h3>🏷️ CATEGORICAL COLUMNS</h3></div><div class="card-body" style="padding:0;"><table class="data-table"><thead><tr><th>COLUMN</th><th>UNIQUE VALUES</th><th>TOP VALUE</th><th>COUNT</th></tr></thead><tbody>';
+      for (const [col, s] of Object.entries(data.text_summary)) {
+        html += `<tr><td>${col}</td><td>${s.unique_values}</td><td>${s.top_value}</td><td>${s.top_count}</td></tr>`;
+      }
+      html += '</tbody></table></div></div>';
+    }
+
+    html += '</div>';
+    body.innerHTML = html;
+  } catch(e) {
+    body.innerHTML = '<div style="color:var(--danger);">Error loading report: ' + e.message + '</div>';
+  }
+}
+
+async function exportCSV() {
+  if (!activeDatasetId) { showToast('error','Select a dataset first'); return; }
+  window.location.href = `/api/reports/export/${activeDatasetId}`;
+  showToast('success', 'Export started...');
+}
+
+// ── History ────────────────────────────────────────────────────────────────
+function addHistory(q, type, dsId) {
+  queryHistory.unshift({ question:q, type, dataset_id:dsId, time: new Date().toLocaleTimeString() });
+  const tbody = document.getElementById('historyBody');
+  tbody.innerHTML = queryHistory.slice(0,20).map(h => `
+    <tr>
+      <td>${h.time}</td>
+      <td>${h.question}</td>
+      <td><span class="badge ${h.type==='voice'?'badge-blue':'badge-orange'}">${h.type}</span></td>
+      <td>${h.dataset_id || '—'}</td>
+    </tr>`).join('');
+}
+
+async function doLogout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/login';
+}
+
+function showToast(type, msg) {
+  const c  = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className  = `toast toast-${type}`;
+  el.textContent = msg;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+</script>
+</body>
+</html>

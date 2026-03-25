@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix Protocol — Admin</title>
+<link rel="stylesheet" href="/static/css/dashboard.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="logo-row">
+      <div class="logo-diamond"><span>👑</span></div>
+      <div>
+        <div class="brand-name">PHOENIX</div>
+        <div class="brand-tagline">ADMIN CONTROL</div>
+      </div>
+    </div>
+    <div class="user-card">
+      <div class="user-name" id="sideUserName">Admin</div>
+      <div class="user-role role-admin">👑 ADMINISTRATOR</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-title">OVERVIEW</div>
+    <div class="nav-item active" onclick="showPage('overview', this)"><span class="nav-icon">🏠</span> Overview</div>
+    <div class="nav-item" onclick="showPage('architecture', this)"><span class="nav-icon">🏗️</span> Architecture</div>
+
+    <div class="nav-section-title">DATA MANAGEMENT</div>
+    <div class="nav-item" onclick="showPage('datasets', this)"><span class="nav-icon">🗄️</span> All Datasets</div>
+    <div class="nav-item" onclick="showPage('upload', this)"><span class="nav-icon">📤</span> Upload Data</div>
+    <div class="nav-item" onclick="showPage('query', this)"><span class="nav-icon">💬</span> Query Engine</div>
+
+    <div class="nav-section-title">ADMIN</div>
+    <div class="nav-item" onclick="showPage('users', this)"><span class="nav-icon">👥</span> Users</div>
+    <div class="nav-item" onclick="showPage('audit', this)"><span class="nav-icon">📝</span> Audit Log</div>
+    <div class="nav-item" onclick="showPage('reports', this)"><span class="nav-icon">📊</span> Reports</div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <button class="logout-btn" onclick="doLogout()">⬡ SIGN OUT</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">PHOENIX COMMAND CENTER</div>
+    <div class="topbar-right">
+      <div class="status-chip"><span class="dot dot-green"></span> Primary Region: us-east-1</div>
+      <div class="status-chip"><span class="dot dot-orange"></span> DR: us-west-2 Standby</div>
+      <div class="status-chip"><span class="dot dot-green"></span> CloudFront Active</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ═══ OVERVIEW ═══ -->
+    <div id="page-overview" class="page active">
+      <div class="stats-grid">
+        <div class="stat-card blue">
+          <div class="stat-label">TOTAL DATASETS</div>
+          <div class="stat-value" id="ovDatasets">0</div>
+          <div class="stat-sub">S3 objects</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-label">TOTAL QUERIES</div>
+          <div class="stat-value" id="ovQueries">0</div>
+          <div class="stat-sub">Analytics requests</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">ACTIVE USERS</div>
+          <div class="stat-value" id="ovUsers">3</div>
+          <div class="stat-sub">IAM accounts</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-label">UPTIME</div>
+          <div class="stat-value">99.9%</div>
+          <div class="stat-sub">Multi-AZ active</div>
+        </div>
+      </div>
+
+      <!-- AWS Services grid -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
+        <div class="aws-service-card" style="--c:#ff9900;">
+          <div class="aws-icon">⚡</div>
+          <div class="aws-name">Amazon EC2</div>
+          <div class="aws-status">3 instances • t3.medium</div>
+          <div class="aws-badge">AUTO SCALING</div>
+        </div>
+        <div class="aws-service-card" style="--c:#00d4ff;">
+          <div class="aws-icon">⚖️</div>
+          <div class="aws-name">Load Balancer</div>
+          <div class="aws-status">Application LB</div>
+          <div class="aws-badge">ACTIVE</div>
+        </div>
+        <div class="aws-service-card" style="--c:#7c3aed;">
+          <div class="aws-icon">🔁</div>
+          <div class="aws-name">Route 53</div>
+          <div class="aws-status">Failover routing</div>
+          <div class="aws-badge">HEALTH CHECK</div>
+        </div>
+        <div class="aws-service-card" style="--c:#2ed573;">
+          <div class="aws-icon">🗄️</div>
+          <div class="aws-name">Amazon RDS</div>
+          <div class="aws-status">Multi-AZ MySQL</div>
+          <div class="aws-badge">REPLICATING</div>
+        </div>
+        <div class="aws-service-card" style="--c:#ff6b35;">
+          <div class="aws-icon">⚡</div>
+          <div class="aws-name">ElastiCache</div>
+          <div class="aws-status">Redis cluster</div>
+          <div class="aws-badge">CACHED</div>
+        </div>
+        <div class="aws-service-card" style="--c:#00d4ff;">
+          <div class="aws-icon">🌐</div>
+          <div class="aws-name">CloudFront</div>
+          <div class="aws-status">270+ edge nodes</div>
+          <div class="aws-badge">GLOBAL CDN</div>
+        </div>
+        <div class="aws-service-card" style="--c:#ff9900;">
+          <div class="aws-icon">🪣</div>
+          <div class="aws-name">Amazon S3</div>
+          <div class="aws-status">Cross-region rep.</div>
+          <div class="aws-badge">CRR ON</div>
+        </div>
+        <div class="aws-service-card" style="--c:#7c3aed;">
+          <div class="aws-icon">λ</div>
+          <div class="aws-name">AWS Lambda</div>
+          <div class="aws-status">Serverless triggers</div>
+          <div class="aws-badge" id="lambdaBadge">0 INVOC.</div>
+        </div>
+        <div class="aws-service-card" style="--c:#ffa502;">
+          <div class="aws-icon">🔐</div>
+          <div class="aws-name">AWS WAF</div>
+          <div class="aws-status">Threat protection</div>
+          <div class="aws-badge">BLOCKING</div>
+        </div>
+        <div class="aws-service-card" style="--c:#2ed573;">
+          <div class="aws-icon">📧</div>
+          <div class="aws-name">Amazon SES</div>
+          <div class="aws-status">Email delivery</div>
+          <div class="aws-badge">VERIFIED</div>
+        </div>
+        <div class="aws-service-card" style="--c:#00d4ff;">
+          <div class="aws-icon">🎙️</div>
+          <div class="aws-name">Amazon Polly</div>
+          <div class="aws-status">Neural TTS</div>
+          <div class="aws-badge">NEURAL</div>
+        </div>
+        <div class="aws-service-card" style="--c:#ff6b35;">
+          <div class="aws-icon">📨</div>
+          <div class="aws-name">Amazon SQS</div>
+          <div class="aws-status">Message queuing</div>
+          <div class="aws-badge">ACTIVE</div>
+        </div>
+      </div>
+
+      <!-- Recent activity -->
+      <div class="card">
+        <div class="card-head">
+          <h3>⚡ RECENT ACTIVITY</h3>
+          <button class="btn btn-secondary btn-sm" onclick="loadStats()">↺ Refresh</button>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <table class="data-table">
+            <thead><tr><th>TIME</th><th>EVENT</th><th>USER</th></tr></thead>
+            <tbody id="activityBody">
+              <tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:24px;">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ ARCHITECTURE ═══ -->
+    <div id="page-architecture" class="page">
+      <div class="card">
+        <div class="card-head"><h3>🏗️ AWS PHOENIX ARCHITECTURE</h3><span class="badge badge-orange">Active/Passive Multi-Region</span></div>
+        <div class="card-body">
+          <div class="arch-diagram">
+            <div class="arch-row">
+              <div class="arch-node user">👥 Users</div>
+              <div class="arch-arrow">→</div>
+              <div class="arch-node cdn">🌐 CloudFront</div>
+              <div class="arch-arrow">→</div>
+              <div class="arch-node dns">🔁 Route 53</div>
+              <div class="arch-arrow">→</div>
+              <div class="arch-node waf">🔐 WAF</div>
+            </div>
+            <div style="display:flex;justify-content:center;margin:8px 0;color:var(--text-dim);">↓</div>
+            <div class="arch-row" style="justify-content:center;">
+              <div class="arch-node lb">⚖️ ALB (Primary)</div>
+            </div>
+            <div style="display:flex;justify-content:center;gap:60px;margin:8px 0;color:var(--text-dim);">
+              <span>↙</span><span>↓</span><span>↘</span>
+            </div>
+            <div class="arch-row" style="justify-content:center;gap:16px;">
+              <div class="arch-node ec2">⚡ EC2 #1</div>
+              <div class="arch-node ec2">⚡ EC2 #2</div>
+              <div class="arch-node ec2">⚡ EC2 #3</div>
+            </div>
+            <div style="display:flex;justify-content:center;margin:8px 0;color:var(--text-dim);">↓</div>
+            <div class="arch-row" style="justify-content:center;gap:20px;">
+              <div class="arch-node cache">⚡ ElastiCache</div>
+              <div class="arch-node db">🗄️ RDS Multi-AZ</div>
+              <div class="arch-node s3">🪣 S3</div>
+            </div>
+            <div style="text-align:center;margin:20px 0;padding:12px;background:rgba(255,107,53,0.06);border:1px dashed rgba(255,107,53,0.3);border-radius:8px;">
+              <span style="color:var(--accent2);font-size:13px;letter-spacing:2px;">⟵ CROSS-REGION REPLICATION ⟶ us-west-2 (DR) — Passive Standby</span>
+            </div>
+            <div class="arch-row" style="justify-content:center;gap:16px;margin-top:8px;">
+              <div class="arch-node svc">λ Lambda</div>
+              <div class="arch-node svc">📨 SQS</div>
+              <div class="arch-node svc">📅 EventBridge</div>
+              <div class="arch-node svc">📧 SES</div>
+              <div class="arch-node svc">🎙️ Polly</div>
+              <div class="arch-node svc">🗝️ IAM</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ DATASETS ═══ -->
+    <div id="page-datasets" class="page">
+      <div class="card">
+        <div class="card-head">
+          <h3>🗄️ ALL DATASETS</h3>
+          <button class="btn btn-secondary btn-sm" onclick="loadAllDatasets()">↺ Refresh</button>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <table class="data-table">
+            <thead><tr><th>ID</th><th>NAME</th><th>ROWS</th><th>COLUMNS</th><th>UPLOADED</th><th>ACTIONS</th></tr></thead>
+            <tbody id="adminDatasetsBody"><tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:32px;">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ UPLOAD ═══ -->
+    <div id="page-upload" class="page">
+      <div class="card">
+        <div class="card-head"><h3>📤 ADMIN DATA UPLOAD</h3><span class="badge badge-orange">Admin Access</span></div>
+        <div class="card-body">
+          <div style="margin-bottom:16px;">
+            <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:6px;">DATASET NAME</label>
+            <input class="form-input" id="adminDatasetName" placeholder="Dataset name..." style="max-width:400px;">
+          </div>
+          <div class="upload-zone" id="adminUploadZone" onclick="document.getElementById('adminFileInput').click()">
+            <span class="upload-icon">☁️</span>
+            <h3>Upload Excel or CSV</h3>
+            <p>Supported: .xlsx, .xls, .csv</p>
+          </div>
+          <input type="file" id="adminFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="adminHandleFile(this)">
+          <div id="adminFileInfo" style="display:none;margin-top:16px;">
+            <span id="adminFileName" style="color:var(--accent1);"></span>
+            <button class="btn btn-primary btn-sm" style="margin-left:16px;" onclick="adminUploadFile()">⬆ UPLOAD</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ QUERY ═══ -->
+    <div id="page-query" class="page">
+      <div class="card">
+        <div class="card-head"><h3>💬 ADMIN QUERY ENGINE</h3></div>
+        <div class="card-body">
+          <div style="display:flex;gap:12px;margin-bottom:16px;align-items:center;">
+            <select class="form-select" id="adminQueryDataset" style="max-width:250px;"></select>
+            <input class="form-input" id="adminQuestion" placeholder="Ask anything about your data...">
+            <button class="btn btn-primary" onclick="adminQuery()">▶ ANALYZE</button>
+          </div>
+          <div class="answer-panel" id="adminAnswer">Enter a question above...</div>
+          <div id="adminChartWrap" style="display:none;margin-top:20px;">
+            <div class="chart-container"><canvas id="adminChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ USERS ═══ -->
+    <div id="page-users" class="page">
+      <div class="card">
+        <div class="card-head">
+          <h3>👥 USER MANAGEMENT</h3>
+          <span class="badge badge-orange">IAM Roles</span>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <table class="data-table">
+            <thead><tr><th>USER ID</th><th>NAME</th><th>EMAIL</th><th>ROLE</th><th>CREATED</th><th>PERMISSIONS</th></tr></thead>
+            <tbody id="usersBody"><tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:32px;">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>🔐 ROLE PERMISSIONS MATRIX</h3></div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+            <div style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:10px;padding:16px;">
+              <div style="color:var(--accent1);font-weight:700;margin-bottom:12px;">📤 DATA LOADER</div>
+              <div class="perm-item">✓ Upload Excel/CSV data</div>
+              <div class="perm-item">✓ View upload history</div>
+              <div class="perm-item">✓ Preview datasets</div>
+              <div class="perm-item muted">✗ Cannot query/analyze</div>
+              <div class="perm-item muted">✗ Cannot view charts</div>
+              <div class="perm-item muted">✗ Cannot export reports</div>
+            </div>
+            <div style="background:rgba(124,58,237,0.05);border:1px solid rgba(124,58,237,0.2);border-radius:10px;padding:16px;">
+              <div style="color:#a78bfa;font-weight:700;margin-bottom:12px;">📈 ANALYST</div>
+              <div class="perm-item">✓ Voice query (Polly)</div>
+              <div class="perm-item">✓ Text query & analysis</div>
+              <div class="perm-item">✓ View all charts</div>
+              <div class="perm-item">✓ Export CSV reports</div>
+              <div class="perm-item">✓ Summary reports</div>
+              <div class="perm-item muted">✗ Cannot upload data</div>
+            </div>
+            <div style="background:rgba(255,107,53,0.05);border:1px solid rgba(255,107,53,0.2);border-radius:10px;padding:16px;">
+              <div style="color:var(--accent2);font-weight:700;margin-bottom:12px;">👑 ADMIN</div>
+              <div class="perm-item">✓ All loader permissions</div>
+              <div class="perm-item">✓ All analyst permissions</div>
+              <div class="perm-item">✓ User management (IAM)</div>
+              <div class="perm-item">✓ Audit log access</div>
+              <div class="perm-item">✓ Delete datasets</div>
+              <div class="perm-item">✓ Send email reports (SES)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ AUDIT LOG ═══ -->
+    <div id="page-audit" class="page">
+      <div class="card">
+        <div class="card-head">
+          <h3>📝 AUDIT LOG</h3>
+          <button class="btn btn-secondary btn-sm" onclick="loadAudit()">↺ Refresh</button>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <table class="data-table">
+            <thead><tr><th>TIMESTAMP</th><th>USER</th><th>ACTION</th><th>DETAILS</th><th>IP</th></tr></thead>
+            <tbody id="auditBody"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:32px;">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ REPORTS ═══ -->
+    <div id="page-reports" class="page">
+      <div class="card">
+        <div class="card-head"><h3>📊 REPORT CENTER</h3></div>
+        <div class="card-body">
+          <div style="display:grid;gap:16px;">
+            <div style="display:flex;gap:12px;align-items:center;">
+              <select class="form-select" id="reportDatasetSel" style="max-width:300px;"></select>
+              <button class="btn btn-primary" onclick="generateAdminReport()">📊 Generate Report</button>
+              <button class="btn btn-secondary" onclick="exportAdminCSV()">⬇ Export CSV</button>
+            </div>
+
+            <div style="padding:16px;background:rgba(0,0,0,0.3);border-radius:8px;border:1px solid var(--border);">
+              <div style="font-size:11px;color:var(--text-dim);letter-spacing:2px;margin-bottom:12px;">EMAIL REPORT (SES)</div>
+              <div style="display:flex;gap:12px;">
+                <input class="form-input" id="emailTo" placeholder="recipient@company.com" style="max-width:300px;">
+                <input class="form-input" id="emailSubject" placeholder="Report subject..." style="max-width:250px;">
+                <button class="btn btn-primary" onclick="sendEmailReport()">📧 Send via SES</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="adminReportBody" style="margin-top:20px;"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<div class="toast-container" id="toastContainer"></div>
+
+<style>
+.aws-service-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--c);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  transition: transform 0.2s;
+}
+.aws-service-card:hover { transform: translateY(-3px); }
+.aws-icon { font-size: 28px; margin-bottom: 8px; }
+.aws-name { font-family: 'Orbitron', monospace; font-size: 11px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+.aws-status { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
+.aws-badge {
+  display: inline-block; padding: 3px 8px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px; font-size: 9px;
+  letter-spacing: 1px; color: var(--c); font-weight: 700;
+}
+
+.arch-diagram { font-family: 'Rajdhani', sans-serif; }
+.arch-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+.arch-arrow { color: var(--accent1); font-size: 18px; }
+.arch-node {
+  padding: 10px 16px; border-radius: 8px; font-size: 13px;
+  font-weight: 600; border: 1px solid;
+}
+.arch-node.user   { background:rgba(0,212,255,0.08);  border-color:rgba(0,212,255,0.3);  color:var(--accent1); }
+.arch-node.cdn    { background:rgba(0,255,136,0.08);  border-color:rgba(0,255,136,0.3);  color:var(--accent4); }
+.arch-node.dns    { background:rgba(124,58,237,0.08); border-color:rgba(124,58,237,0.3); color:#a78bfa; }
+.arch-node.waf    { background:rgba(255,71,87,0.08);  border-color:rgba(255,71,87,0.3);  color:var(--danger); }
+.arch-node.lb     { background:rgba(255,107,53,0.08); border-color:rgba(255,107,53,0.3); color:var(--accent2); }
+.arch-node.ec2    { background:rgba(255,165,2,0.08);  border-color:rgba(255,165,2,0.3);  color:var(--warn); }
+.arch-node.cache  { background:rgba(0,212,255,0.08);  border-color:rgba(0,212,255,0.3);  color:var(--accent1); }
+.arch-node.db     { background:rgba(0,255,136,0.08);  border-color:rgba(0,255,136,0.3);  color:var(--accent4); }
+.arch-node.s3     { background:rgba(255,107,53,0.08); border-color:rgba(255,107,53,0.3); color:var(--accent2); }
+.arch-node.svc    { background:rgba(255,255,255,0.03); border-color:var(--border); color:var(--text-dim); font-size:11px; }
+
+.perm-item { font-size: 13px; padding: 4px 0; color: var(--text); }
+.perm-item.muted { color: var(--text-mute); }
+</style>
+
+<script>
+let adminChartInst = null;
+
+window.addEventListener('load', async () => {
+  try {
+    const res  = await fetch('/api/auth/me');
+    const user = await res.json();
+    document.getElementById('sideUserName').textContent = user.name;
+  } catch(e) {}
+  loadStats();
+  loadUsers();
+  loadAudit();
+  loadAllDatasets();
+});
+
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'query' || name === 'reports') loadDatasetSelects();
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const res  = await fetch('/api/admin/stats');
+    const data = await res.json();
+    document.getElementById('ovDatasets').textContent = data.total_datasets;
+    document.getElementById('ovQueries').textContent  = data.total_queries;
+    document.getElementById('ovUsers').textContent    = data.total_users;
+
+    const tbody = document.getElementById('activityBody');
+    const acts  = data.recent_activity || [];
+    if (!acts.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:24px;">No activity yet</td></tr>';
+    } else {
+      tbody.innerHTML = acts.reverse().slice(0,10).map(a => `
+        <tr>
+          <td>${a.timestamp ? new Date(a.timestamp).toLocaleString() : '—'}</td>
+          <td>${a.action || a.type || '—'}</td>
+          <td>${a.user_id || a.question || '—'}</td>
+        </tr>`).join('');
+    }
+  } catch(e) {}
+}
+
+// ── Datasets ───────────────────────────────────────────────────────────────
+async function loadAllDatasets() {
+  try {
+    const res  = await fetch('/api/data/datasets');
+    const data = await res.json();
+    const list = data.datasets || [];
+    const tbody = document.getElementById('adminDatasetsBody');
+    tbody.innerHTML = list.length === 0
+      ? '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:32px;">No datasets</td></tr>'
+      : list.map(d => `
+        <tr>
+          <td><span class="badge badge-blue">${d.dataset_id}</span></td>
+          <td>${d.name}</td>
+          <td>${(d.rows||0).toLocaleString()}</td>
+          <td>${(d.columns||[]).length}</td>
+          <td>${new Date(d.uploaded_at).toLocaleString()}</td>
+          <td>
+            <button class="btn btn-danger btn-sm" onclick="deleteDataset('${d.dataset_id}')">🗑 Delete</button>
+          </td>
+        </tr>`).join('');
+  } catch(e) {}
+}
+
+async function deleteDataset(id) {
+  if (!confirm('Delete dataset ' + id + '?')) return;
+  const res = await fetch(`/api/data/delete/${id}`, { method: 'DELETE' });
+  const d   = await res.json();
+  showToast(d.success ? 'success' : 'error', d.success ? 'Dataset deleted.' : d.error);
+  loadAllDatasets();
+}
+
+// ── Admin upload ───────────────────────────────────────────────────────────
+let adminFile = null;
+document.getElementById('adminUploadZone').addEventListener('dragover', e => { e.preventDefault(); });
+document.getElementById('adminUploadZone').addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer.files[0]) showAdminFile(e.dataTransfer.files[0]);
+});
+function adminHandleFile(i) { if (i.files[0]) showAdminFile(i.files[0]); }
+function showAdminFile(f) {
+  adminFile = f;
+  document.getElementById('adminFileInfo').style.display = 'block';
+  document.getElementById('adminFileName').textContent   = '📄 ' + f.name;
+}
+async function adminUploadFile() {
+  if (!adminFile) return;
+  const name = document.getElementById('adminDatasetName').value || adminFile.name;
+  const form = new FormData();
+  form.append('file', adminFile);
+  form.append('dataset_name', name);
+  try {
+    const res  = await fetch('/api/data/upload', { method:'POST', body:form });
+    const data = await res.json();
+    showToast(data.success ? 'success' : 'error', data.success ? `✓ ${name} uploaded` : data.error);
+    if (data.success) { loadAllDatasets(); loadStats(); }
+  } catch(e) { showToast('error', e.message); }
+}
+
+// ── Admin query ────────────────────────────────────────────────────────────
+async function loadDatasetSelects() {
+  const res  = await fetch('/api/data/datasets');
+  const data = await res.json();
+  const list = data.datasets || [];
+  const opts = '<option value="">Select dataset...</option>' +
+    list.map(d => `<option value="${d.dataset_id}">${d.name}</option>`).join('');
+  const selectors = ['adminQueryDataset','reportDatasetSel'];
+  selectors.forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = opts; });
+}
+
+async function adminQuery() {
+  const q  = document.getElementById('adminQuestion').value.trim();
+  const ds = document.getElementById('adminQueryDataset').value;
+  if (!q) return;
+  document.getElementById('adminAnswer').textContent = '⏳ Analyzing...';
+  const res  = await fetch('/api/query/text', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ question:q, dataset_id:ds })
+  });
+  const data = await res.json();
+  document.getElementById('adminAnswer').textContent = data.answer || data.error;
+  if (data.chart_data) {
+    const wrap = document.getElementById('adminChartWrap');
+    wrap.style.display = 'block';
+    if (adminChartInst) adminChartInst.destroy();
+    const ctx = document.getElementById('adminChart').getContext('2d');
+    const COLORS = ['#00d4ff','#ff6b35','#7c3aed','#00ff88','#ffa502'];
+    adminChartInst = new Chart(ctx, {
+      type: data.chart_type || 'bar',
+      data: {
+        labels: data.chart_data.labels,
+        datasets: data.chart_data.datasets.map((ds,i) => ({
+          ...ds,
+          backgroundColor: COLORS[i%COLORS.length]+'44',
+          borderColor:     COLORS[i%COLORS.length],
+          borderWidth: 2
+        }))
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ labels:{ color:'#c8deff' } } },
+        scales:{ x:{ticks:{color:'#4a6fa5'},grid:{color:'#0c2040'}}, y:{ticks:{color:'#4a6fa5'},grid:{color:'#0c2040'}} }
+      }
+    });
+  }
+}
+
+// ── Users ──────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  try {
+    const res  = await fetch('/api/admin/users');
+    const data = await res.json();
+    const roleColors = { data_loader:'badge-blue', analyst:'badge-blue', admin:'badge-orange' };
+    document.getElementById('usersBody').innerHTML = (data.users||[]).map(u => `
+      <tr>
+        <td>${u.user_id}</td>
+        <td>${u.name}</td>
+        <td>${u.email}</td>
+        <td><span class="badge ${roleColors[u.role]||'badge-blue'}">${u.role.toUpperCase()}</span></td>
+        <td>${u.created_at}</td>
+        <td style="font-size:11px;color:var(--text-dim);">${getPermCount(u.role)} permissions</td>
+      </tr>`).join('');
+  } catch(e) {}
+}
+
+function getPermCount(role) {
+  const map = { data_loader:3, analyst:6, admin:10 };
+  return map[role] || 0;
+}
+
+// ── Audit ──────────────────────────────────────────────────────────────────
+async function loadAudit() {
+  try {
+    const res  = await fetch('/api/admin/audit');
+    const data = await res.json();
+    const tbody = document.getElementById('auditBody');
+    const logs  = data.audit_log || [];
+    tbody.innerHTML = logs.length === 0
+      ? '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:32px;">No audit records yet</td></tr>'
+      : logs.reverse().map(l => `
+        <tr>
+          <td>${new Date(l.timestamp).toLocaleString()}</td>
+          <td>${l.user_id}</td>
+          <td><span class="badge badge-blue">${l.action}</span></td>
+          <td>${l.details || '—'}</td>
+          <td>${l.ip || '—'}</td>
+        </tr>`).join('');
+  } catch(e) {}
+}
+
+// ── Reports ────────────────────────────────────────────────────────────────
+async function generateAdminReport() {
+  const id = document.getElementById('reportDatasetSel').value;
+  if (!id) { showToast('error','Select a dataset'); return; }
+  const res  = await fetch(`/api/reports/summary/${id}`);
+  const data = await res.json();
+  const body = document.getElementById('adminReportBody');
+  body.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-label">ROWS</div><div class="stat-value">${(data.total_rows||0).toLocaleString()}</div></div>
+      <div class="stat-card orange"><div class="stat-label">COLUMNS</div><div class="stat-value">${data.total_columns}</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);margin-top:8px;">Report generated by ${data.generated_by} at ${new Date(data.generated_at).toLocaleString()}</div>`;
+}
+
+async function exportAdminCSV() {
+  const id = document.getElementById('reportDatasetSel').value;
+  if (!id) { showToast('error','Select a dataset'); return; }
+  window.location.href = `/api/reports/export/${id}`;
+}
+
+async function sendEmailReport() {
+  const email   = document.getElementById('emailTo').value.trim();
+  const subject = document.getElementById('emailSubject').value.trim();
+  const id      = document.getElementById('reportDatasetSel').value;
+  if (!email) { showToast('error','Enter recipient email'); return; }
+  const res  = await fetch('/api/reports/send-email', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ email, subject, dataset_id:id })
+  });
+  const data = await res.json();
+  showToast(data.success ? 'success' : 'error', data.message || data.error);
+}
+
+async function doLogout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/login';
+}
+
+function showToast(type, msg) {
+  const c  = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className  = `toast toast-${type}`;
+  el.textContent = msg;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+</script>
+</body>
+</html>

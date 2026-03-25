@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix Protocol — Data Loader</title>
+<link rel="stylesheet" href="/static/css/dashboard.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="logo-row">
+      <div class="logo-diamond"><span>🔥</span></div>
+      <div>
+        <div class="brand-name">PHOENIX</div>
+        <div class="brand-tagline">DATA PIPELINE</div>
+      </div>
+    </div>
+    <div class="user-card">
+      <div class="user-name" id="sideUserName">Data Loader</div>
+      <div class="user-role role-data_loader">📤 DATA LOADER</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-title">NAVIGATION</div>
+    <div class="nav-item active" onclick="showPage('upload')">
+      <span class="nav-icon">📤</span> Upload Data
+    </div>
+    <div class="nav-item" onclick="showPage('datasets')">
+      <span class="nav-icon">🗄️</span> My Datasets
+    </div>
+    <div class="nav-item" onclick="showPage('preview')">
+      <span class="nav-icon">🔍</span> Preview Data
+    </div>
+    <div class="nav-section-title">SYSTEM</div>
+    <div class="nav-item" onclick="showPage('status')">
+      <span class="nav-icon">⚡</span> Pipeline Status
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <button class="logout-btn" onclick="doLogout()">⬡ SIGN OUT</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">DATA INGESTION PIPELINE</div>
+    <div class="topbar-right">
+      <div class="status-chip"><span class="dot dot-green"></span> S3 Connected</div>
+      <div class="status-chip"><span class="dot dot-green"></span> SQS Active</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ═══ UPLOAD PAGE ═══ -->
+    <div id="page-upload" class="page active">
+      <div class="stats-grid">
+        <div class="stat-card blue">
+          <div class="stat-label">TOTAL DATASETS</div>
+          <div class="stat-value" id="statDatasets">0</div>
+          <div class="stat-sub">Loaded in S3</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">TOTAL ROWS</div>
+          <div class="stat-value" id="statRows">0</div>
+          <div class="stat-sub">Records processed</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-label">LAST UPLOAD</div>
+          <div class="stat-value" id="statLastUpload" style="font-size:14px;padding-top:8px;">—</div>
+          <div class="stat-sub">UTC timestamp</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-label">PIPELINE</div>
+          <div class="stat-value" style="font-size:16px;padding-top:8px;">ACTIVE</div>
+          <div class="stat-sub">EC2 → S3 → Lambda</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>📤 UPLOAD DATASET</h3>
+          <span class="badge badge-blue">S3 + Lambda</span>
+        </div>
+        <div class="card-body">
+          <div style="margin-bottom:16px;">
+            <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:6px;letter-spacing:1px;">DATASET NAME</label>
+            <input class="form-input" id="datasetName" placeholder="e.g. Q4 Sales Data 2024" style="max-width:400px;">
+          </div>
+
+          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+            <span class="upload-icon">☁️</span>
+            <h3>Drop your Excel or CSV file here</h3>
+            <p>Supports .xlsx, .xls, .csv — Max 50MB</p>
+            <p style="margin-top:12px;color:var(--accent1);font-size:13px;">Click to browse files</p>
+          </div>
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFileSelect(this)">
+
+          <div id="fileInfo" style="display:none;margin-top:16px;padding:12px 16px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span id="fileName" style="font-size:14px;color:var(--accent1);"></span>
+              <button class="btn btn-primary btn-sm" onclick="uploadFile()">⬆ UPLOAD TO S3</button>
+            </div>
+            <div id="fileSize" style="font-size:12px;color:var(--text-dim);margin-top:4px;"></div>
+          </div>
+
+          <div id="uploadProgress" style="display:none;margin-top:16px;">
+            <div style="display:flex;align-items:center;gap:16px;">
+              <div class="spinner"></div>
+              <div>
+                <div style="font-size:14px;color:var(--accent1);" id="progressText">Uploading to S3...</div>
+                <div style="font-size:12px;color:var(--text-dim);">EC2 → S3 → Lambda trigger → DynamoDB</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pipeline visualization -->
+          <div style="margin-top:24px;padding:16px;background:rgba(0,0,0,0.3);border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:11px;color:var(--text-dim);letter-spacing:2px;margin-bottom:12px;">AWS PIPELINE FLOW</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div class="pipeline-step active">📤 Browser</div>
+              <div style="color:var(--accent1);">→</div>
+              <div class="pipeline-step" id="ps-ec2">⚡ EC2</div>
+              <div style="color:var(--accent1);">→</div>
+              <div class="pipeline-step" id="ps-s3">🪣 S3</div>
+              <div style="color:var(--accent1);">→</div>
+              <div class="pipeline-step" id="ps-lambda">λ Lambda</div>
+              <div style="color:var(--accent1);">→</div>
+              <div class="pipeline-step" id="ps-dynamo">🗄 DynamoDB</div>
+              <div style="color:var(--accent1);">→</div>
+              <div class="pipeline-step" id="ps-sqs">📨 SQS</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload history -->
+      <div class="card">
+        <div class="card-head">
+          <h3>📋 RECENT UPLOADS</h3>
+          <button class="btn btn-secondary btn-sm" onclick="loadDatasets()">↺ Refresh</button>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <table class="data-table" id="uploadsTable">
+            <thead>
+              <tr>
+                <th>DATASET ID</th>
+                <th>NAME</th>
+                <th>ROWS</th>
+                <th>COLUMNS</th>
+                <th>SIZE</th>
+                <th>UPLOADED AT</th>
+                <th>ACTION</th>
+              </tr>
+            </thead>
+            <tbody id="uploadsBody">
+              <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:32px;">No datasets uploaded yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ DATASETS PAGE ═══ -->
+    <div id="page-datasets" class="page">
+      <div class="card">
+        <div class="card-head">
+          <h3>🗄️ ALL DATASETS IN S3</h3>
+          <button class="btn btn-secondary btn-sm" onclick="loadDatasets()">↺ Refresh</button>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>DATASET ID</th><th>NAME</th><th>ROWS</th><th>COLUMNS</th><th>UPLOADED</th><th>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody id="datasetsBody">
+              <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:32px;">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PREVIEW PAGE ═══ -->
+    <div id="page-preview" class="page">
+      <div class="card">
+        <div class="card-head">
+          <h3>🔍 DATA PREVIEW</h3>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;gap:12px;margin-bottom:16px;">
+            <select class="form-select" id="previewSelect" style="max-width:300px;" onchange="loadPreview(this.value)">
+              <option value="">Select dataset...</option>
+            </select>
+          </div>
+          <div id="previewContent" style="color:var(--text-dim);font-size:14px;">Select a dataset to preview its data.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ STATUS PAGE ═══ -->
+    <div id="page-status" class="page">
+      <div class="stats-grid">
+        <div class="stat-card blue"><div class="stat-label">EC2 INSTANCES</div><div class="stat-value">3</div><div class="stat-sub">Auto Scaling active</div></div>
+        <div class="stat-card green"><div class="stat-label">S3 STATUS</div><div class="stat-value">✓</div><div class="stat-sub">Cross-region replication</div></div>
+        <div class="stat-card orange"><div class="stat-label">SQS MESSAGES</div><div class="stat-value" id="sqsCount">0</div><div class="stat-sub">In queue</div></div>
+        <div class="stat-card purple"><div class="stat-label">LAMBDA INVOCATIONS</div><div class="stat-value" id="lambdaCount">0</div><div class="stat-sub">Last 24h</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>⚡ AWS SERVICE STATUS</h3></div>
+        <div class="card-body">
+          <div style="display:grid;gap:12px;">
+            <div class="service-row">🪣 Amazon S3 (us-east-1) <span class="badge badge-green">ACTIVE</span></div>
+            <div class="service-row">λ AWS Lambda <span class="badge badge-green">ACTIVE</span></div>
+            <div class="service-row">📨 Amazon SQS <span class="badge badge-green">ACTIVE</span></div>
+            <div class="service-row">⚡ EC2 Auto Scaling <span class="badge badge-green">ACTIVE</span></div>
+            <div class="service-row">📊 EventBridge <span class="badge badge-green">ACTIVE</span></div>
+            <div class="service-row">🗄 DynamoDB <span class="badge badge-green">ACTIVE</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<div class="toast-container" id="toastContainer"></div>
+
+<style>
+  .pipeline-step {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    transition: all 0.5s;
+  }
+  .pipeline-step.active {
+    background: rgba(0,212,255,0.12);
+    border-color: var(--accent1);
+    color: var(--accent1);
+    box-shadow: 0 0 10px rgba(0,212,255,0.2);
+  }
+  .service-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+</style>
+
+<script>
+  let datasets = [];
+
+  window.addEventListener('load', async () => {
+    try {
+      const res  = await fetch('/api/auth/me');
+      const user = await res.json();
+      document.getElementById('sideUserName').textContent = user.name;
+    } catch(e) {}
+    loadDatasets();
+  });
+
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    event.currentTarget.classList.add('active');
+    if (name === 'datasets') loadDatasetsPage();
+  }
+
+  // ── Drag and drop ──────────────────────────────────────────────────────────
+  const zone = document.getElementById('uploadZone');
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', ()  => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) showFileInfo(file);
+  });
+
+  function handleFileSelect(input) {
+    if (input.files[0]) showFileInfo(input.files[0]);
+  }
+
+  let selectedFile = null;
+  function showFileInfo(file) {
+    selectedFile = file;
+    document.getElementById('fileInfo').style.display = 'block';
+    document.getElementById('fileName').textContent  = '📄 ' + file.name;
+    document.getElementById('fileSize').textContent  = 'Size: ' + (file.size / 1024).toFixed(1) + ' KB';
+  }
+
+  async function uploadFile() {
+    if (!selectedFile) return;
+    const name = document.getElementById('datasetName').value || selectedFile.name;
+
+    document.getElementById('fileInfo').style.display    = 'none';
+    document.getElementById('uploadProgress').style.display = 'block';
+
+    // Animate pipeline
+    animatePipeline(['ps-ec2', 'ps-s3', 'ps-lambda', 'ps-dynamo', 'ps-sqs']);
+
+    const form = new FormData();
+    form.append('file', selectedFile);
+    form.append('dataset_name', name);
+
+    try {
+      const res  = await fetch('/api/data/upload', { method: 'POST', body: form });
+      const data = await res.json();
+
+      document.getElementById('uploadProgress').style.display = 'none';
+
+      if (data.success) {
+        showToast('success', `✓ Dataset "${name}" uploaded — ${data.rows} rows`);
+        updateStats();
+        loadDatasets();
+        selectedFile = null;
+        document.getElementById('datasetName').value = '';
+        document.getElementById('fileInput').value   = '';
+      } else {
+        showToast('error', data.error || 'Upload failed');
+      }
+    } catch (e) {
+      document.getElementById('uploadProgress').style.display = 'none';
+      showToast('error', 'Upload error: ' + e.message);
+    }
+  }
+
+  function animatePipeline(ids) {
+    ids.forEach((id, i) => {
+      setTimeout(() => {
+        document.getElementById(id).classList.add('active');
+      }, i * 600);
+    });
+    setTimeout(() => {
+      ids.forEach(id => document.getElementById(id).classList.remove('active'));
+    }, ids.length * 600 + 1000);
+  }
+
+  async function loadDatasets() {
+    try {
+      const res  = await fetch('/api/data/datasets');
+      const data = await res.json();
+      datasets   = data.datasets || [];
+      renderUploadsTable(datasets);
+      updateStats();
+      updatePreviewSelect(datasets);
+    } catch(e) {}
+  }
+
+  function updateStats() {
+    document.getElementById('statDatasets').textContent = datasets.length;
+    document.getElementById('statRows').textContent     = datasets.reduce((s, d) => s + (d.rows || 0), 0).toLocaleString();
+    if (datasets.length > 0) {
+      const last = datasets[datasets.length - 1];
+      document.getElementById('statLastUpload').textContent = new Date(last.uploaded_at).toLocaleTimeString();
+    }
+  }
+
+  function renderUploadsTable(list) {
+    const tbody = document.getElementById('uploadsBody');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:32px;">No datasets yet. Upload your first file above.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(d => `
+      <tr>
+        <td><span class="badge badge-blue">${d.dataset_id}</span></td>
+        <td>${d.name}</td>
+        <td>${(d.rows || 0).toLocaleString()}</td>
+        <td>${d.col_count || (d.columns || []).length}</td>
+        <td>${d.size_kb || '—'} KB</td>
+        <td>${new Date(d.uploaded_at).toLocaleString()}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick="loadPreviewById('${d.dataset_id}')">Preview</button></td>
+      </tr>
+    `).join('');
+  }
+
+  function loadDatasetsPage() {
+    const tbody = document.getElementById('datasetsBody');
+    if (!datasets.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:32px;">No datasets found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = datasets.map(d => `
+      <tr>
+        <td><span class="badge badge-blue">${d.dataset_id}</span></td>
+        <td>${d.name}</td>
+        <td>${(d.rows||0).toLocaleString()}</td>
+        <td>${(d.columns||[]).length}</td>
+        <td>${new Date(d.uploaded_at).toLocaleString()}</td>
+        <td>
+          <button class="btn btn-secondary btn-sm" onclick="loadPreviewById('${d.dataset_id}')">👁 Preview</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function updatePreviewSelect(list) {
+    const sel = document.getElementById('previewSelect');
+    sel.innerHTML = '<option value="">Select dataset...</option>' +
+      list.map(d => `<option value="${d.dataset_id}">${d.name} (${d.rows} rows)</option>`).join('');
+  }
+
+  async function loadPreview(id) {
+    if (!id) return;
+    await loadPreviewById(id);
+  }
+
+  async function loadPreviewById(id) {
+    showPage_direct('preview');
+    document.getElementById('previewSelect').value = id;
+    const el = document.getElementById('previewContent');
+    el.innerHTML = '<div style="display:flex;gap:12px;align-items:center;"><div class="spinner"></div> Loading preview...</div>';
+    try {
+      const res  = await fetch(`/api/data/preview/${id}`);
+      const data = await res.json();
+      if (data.error) { el.textContent = data.error; return; }
+      el.innerHTML = `
+        <div style="margin-bottom:12px;">
+          <span class="badge badge-blue">${data.rows} rows</span>
+          <span style="margin-left:8px;font-size:13px;color:var(--text-dim);">Columns: ${data.columns.join(', ')}</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead><tr>${data.columns.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+            <tbody>${data.preview.map(row => `<tr>${data.columns.map(c => `<td>${row[c] ?? ''}</td>`).join('')}</tr>`).join('')}</tbody>
+          </table>
+        </div>`;
+    } catch(e) {
+      el.textContent = 'Error loading preview: ' + e.message;
+    }
+  }
+
+  function showPage_direct(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+  }
+
+  async function doLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+  }
+
+  function showToast(type, msg) {
+    const c   = document.getElementById('toastContainer');
+    const el  = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.textContent = msg;
+    c.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+</script>
+</body>
+</html>
