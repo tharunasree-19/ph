@@ -598,6 +598,7 @@ def api_summary_report(dataset_id):
         }
 
     log_audit(session["user_id"], "EXPORT_REPORT", dataset_id)
+    report["missing_values"] = {k: int(v) for k, v in report["missing_values"].items()}
     return jsonify(report)
 
 @app.route("/api/reports/export/<dataset_id>")
