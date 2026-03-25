@@ -139,12 +139,27 @@ def log_audit(user_id, action, details=""):
     QUERY_HISTORY.append(entry)
     return entry
 
+from io import StringIO
+import os
+
 def get_dataset(dataset_id):
+    # 1. Check memory first
     if dataset_id in ANALYSIS_CACHE:
         data = ANALYSIS_CACHE[dataset_id]
-        if isinstance(data, str):
+
+        # If stored as JSON string
+        if isinstance(data, str) and not data.endswith(".json"):
+            return pd.read_json(StringIO(data))
+
+        # If stored as file path
+        if isinstance(data, str) and data.endswith(".json") and os.path.exists(data):
             return pd.read_json(data)
-        return data
+
+    # 2. Check file storage (permanent)
+    file_path = f"datasets/{dataset_id}.json"
+    if os.path.exists(file_path):
+        return pd.read_json(file_path)
+
     return None
 
 def analyze_dataframe(df, question):
@@ -379,7 +394,17 @@ def api_upload():
             df = pd.read_excel(f)
 
         # Store in memory
-        ANALYSIS_CACHE[dataset_id] = df.to_json()
+        import os
+
+# Create folder if not exists
+os.makedirs("datasets", exist_ok=True)
+
+# Save file permanently
+file_path = f"datasets/{dataset_id}.json"
+df.to_json(file_path)
+
+# Store file path instead of raw JSON
+ANALYSIS_CACHE[dataset_id] = file_path
         UPLOADED_DATASETS[dataset_id] = {
             "dataset_id":   dataset_id,
             "name":         dataset_name,
