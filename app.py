@@ -621,24 +621,24 @@ def api_summary_report(dataset_id):
     text_cols    = df.select_dtypes(include="object").columns.tolist()
 
     report = {
-        "dataset_id":     dataset_id,
-        "generated_at":   datetime.utcnow().isoformat(),
-        "generated_by":   session.get("name"),
-        "total_rows":     len(df),
-        "total_columns":  len(df.columns),
+        "dataset_id":      dataset_id,
+        "generated_at":    datetime.utcnow().isoformat(),
+        "generated_by":    session.get("name"),
+        "total_rows":      len(df),
+        "total_columns":   len(df.columns),
         "numeric_summary": {},
         "text_summary":    {},
-        "missing_values":  df.isnull().sum().to_dict()
+        "missing_values":  {k: int(v) for k, v in df.isnull().sum().to_dict().items()}  # ✅ fixed
     }
 
     for col in numeric_cols[:5]:
         report["numeric_summary"][col] = {
-    "sum":    float(df[col].sum()),
-    "mean":   float(df[col].mean()),
-    "min":    float(df[col].min()),
-    "max":    float(df[col].max()),
-    "std":    float(df[col].std())
-}
+            "sum":  float(df[col].sum()),
+            "mean": float(df[col].mean()),
+            "min":  float(df[col].min()),
+            "max":  float(df[col].max()),
+            "std":  float(df[col].std())
+        }
 
     for col in text_cols[:3]:
         vc = df[col].value_counts()
@@ -649,8 +649,7 @@ def api_summary_report(dataset_id):
         }
 
     log_audit(session["user_id"], "EXPORT_REPORT", dataset_id)
-    report["missing_values"] = {k: int(v) for k, v in report["missing_values"].items()}
-    return jsonify(make_json_safe(report))
+    return jsonify(make_json_safe(report))  # ✅ dangling line removed, only this remains
 
 @app.route("/api/reports/export/<dataset_id>")
 @login_required
