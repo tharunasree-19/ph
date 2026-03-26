@@ -418,8 +418,7 @@ ANALYSIS_CACHE[dataset_id] = file_path
         }
 
         log_audit(session["user_id"], "UPLOAD", f"Dataset '{dataset_name}' ({len(df)} rows)")
-
-        # Simulate S3 upload notification
+# Simulate S3 upload notification
         try:
             s3 = get_aws_client("s3")
             # s3.put_object(Bucket=S3_BUCKET, Key=f"datasets/{dataset_id}.json", Body=df.to_json())
