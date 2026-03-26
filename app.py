@@ -583,35 +583,31 @@ def api_voice_query():
 # ─── Reports API ──────────────────────────────────────────────────────────────
 
 import numpy as np
+import math
 
 def make_json_safe(obj):
     if isinstance(obj, dict):
         return {k: make_json_safe(v) for k, v in obj.items()}
+    
     elif isinstance(obj, list):
         return [make_json_safe(v) for v in obj]
-    elif isinstance(obj, np.integer):
-        return int(obj)
-    elif isinstance(obj, np.floating):
-        return float(obj)
-    elif isinstance(obj, np.ndarray):
-        return obj.tolist()
-    else:
-        return obj
-
-
-def make_json_safe(obj):
-    if isinstance(obj, dict):
-        return {k: make_json_safe(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [make_json_safe(v) for v in obj]
+    
     elif isinstance(obj, (np.integer,)):
         return int(obj)
+    
     elif isinstance(obj, (np.floating,)):
+        # handle NaN
+        if math.isnan(obj):
+            return None
         return float(obj)
+    
     elif isinstance(obj, (np.ndarray,)):
         return obj.tolist()
-    else:
-        return obj
+    
+    elif obj is None:
+        return None
+    
+    return obj
 
 @app.route("/api/reports/summary/<dataset_id>")
 @login_required
@@ -637,12 +633,12 @@ def api_summary_report(dataset_id):
 
     for col in numeric_cols[:5]:
         report["numeric_summary"][col] = {
-            "sum":    round(df[col].sum(), 2),
-            "mean":   round(df[col].mean(), 2),
-            "min":    round(df[col].min(), 2),
-            "max":    round(df[col].max(), 2),
-            "std":    round(df[col].std(), 2)
-        }
+    "sum":    float(df[col].sum()),
+    "mean":   float(df[col].mean()),
+    "min":    float(df[col].min()),
+    "max":    float(df[col].max()),
+    "std":    float(df[col].std())
+}
 
     for col in text_cols[:3]:
         vc = df[col].value_counts()
