@@ -684,10 +684,12 @@ def api_send_email():
         if df is None:
             return jsonify({"error": "Dataset not found"}), 404
 
-        # ── Get all user emails from DEMO_USERS ────────────────────────────
-        all_emails = [user["email"] for user in DEMO_USERS.values()]
+        # ✅ Get email from frontend
+        recipient = data.get("email")
+        if not recipient:
+            return jsonify({"error": "Email is required"}), 400
 
-        # ── Build full report content ───────────────────────────────────────
+        # ── Build report ───────────────────────────────
         numeric_cols = df.select_dtypes(include="number").columns.tolist()
         text_cols    = df.select_dtypes(include="object").columns.tolist()
 
@@ -741,6 +743,7 @@ def api_send_email():
 
         missing = df.isnull().sum()
         missing = missing[missing > 0]
+
         if len(missing) > 0:
             for col, count in missing.items():
                 report_lines.append(f"  {col}: {count} missing")
@@ -756,36 +759,36 @@ def api_send_email():
 
         message_body = "\n".join(report_lines)
 
-        # ── Send email to all users via SMTP ───────────────────────────────
-        sent     = []
-        failed   = []
+        # ── Send email to ONE user ─────────────────────
+        sent   = []
+        failed = []
 
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
 
-            for recipient in all_emails:
-                try:
-                    msg = MIMEMultipart()
-                    msg["From"]    = SMTP_EMAIL
-                    msg["To"]      = recipient
-                    msg["Subject"] = subject
+            try:
+                msg = MIMEMultipart()
+                msg["From"]    = SMTP_EMAIL
+                msg["To"]      = recipient
+                msg["Subject"] = subject
 
-                    msg.attach(MIMEText(message_body, "plain"))
-                    server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
-                    sent.append(recipient)
+                msg.attach(MIMEText(message_body, "plain"))
 
-                except Exception as e:
-                    failed.append({"email": recipient, "error": str(e)})
+                server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
+                sent.append(recipient)
+
+            except Exception as e:
+                failed.append({"email": recipient, "error": str(e)})
 
         log_audit(session["user_id"], "SEND_EMAIL",
-                  f"Report sent to {len(sent)} users via SMTP")
+                  f"Report sent to {recipient}")
 
         return jsonify({
-            "success" : True,
-            "message" : f"Report sent to {len(sent)} users",
-            "sent"    : sent,
-            "failed"  : failed
+            "success": True,
+            "message": f"Report sent to {recipient}",
+            "sent": sent,
+            "failed": failed
         })
 
     except Exception as e:
