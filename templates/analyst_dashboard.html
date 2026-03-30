@@ -33,9 +33,6 @@
     <div class="nav-item" onclick="showPage('text', this)">
       <span class="nav-icon">💬</span> Text Query
     </div>
-    <div class="nav-item" onclick="showPage('charts', this)">
-      <span class="nav-icon">📊</span> Charts
-    </div>
     <div class="nav-section-title">REPORTS</div>
     <div class="nav-item" onclick="showPage('report', this)">
       <span class="nav-icon">📋</span> Summary Report
@@ -188,54 +185,6 @@
       </div>
     </div>
 
-    <!-- ═══ CHARTS PAGE ═══ -->
-    <div id="page-charts" class="page">
-      <div class="stats-grid">
-        <div class="stat-card blue">
-          <div class="stat-label">DATASET ROWS</div>
-          <div class="stat-value" id="chartStatRows">—</div>
-          <div class="stat-sub">Total records</div>
-        </div>
-        <div class="stat-card orange">
-          <div class="stat-label">COLUMNS</div>
-          <div class="stat-value" id="chartStatCols">—</div>
-          <div class="stat-sub">Data dimensions</div>
-        </div>
-        <div class="stat-card green">
-          <div class="stat-label">NUMERIC COLS</div>
-          <div class="stat-value" id="chartStatNum">—</div>
-          <div class="stat-sub">Analysable fields</div>
-        </div>
-        <div class="stat-card purple">
-          <div class="stat-label">CATEGORIES</div>
-          <div class="stat-value" id="chartStatCat">—</div>
-          <div class="stat-sub">Text dimensions</div>
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-        <div class="card">
-          <div class="card-head"><h3>📊 REVENUE BREAKDOWN</h3></div>
-          <div class="card-body"><div class="chart-container"><canvas id="chart1"></canvas></div></div>
-        </div>
-        <div class="card">
-          <div class="card-head"><h3>📈 TREND ANALYSIS</h3></div>
-          <div class="card-body"><div class="chart-container"><canvas id="chart2"></canvas></div></div>
-        </div>
-        <div class="card">
-          <div class="card-head"><h3>🥧 DISTRIBUTION</h3></div>
-          <div class="card-body"><div class="chart-container"><canvas id="chart3"></canvas></div></div>
-        </div>
-        <div class="card">
-          <div class="card-head"><h3>⚡ TOP PERFORMERS</h3></div>
-          <div class="card-body"><div class="chart-container"><canvas id="chart4"></canvas></div></div>
-        </div>
-      </div>
-      <div style="text-align:center;margin-top:20px;">
-        <button class="btn btn-primary" onclick="loadAllCharts()">↺ REFRESH CHARTS</button>
-      </div>
-    </div>
-
     <!-- ═══ REPORT PAGE ═══ -->
     <div id="page-report" class="page">
       <div class="card">
@@ -312,7 +261,6 @@
 let activeDatasetId = '';
 let voiceChartInstance = null;
 let textChartInstance  = null;
-let chartInstances     = {};
 let lastChartData      = null;
 let queryHistory       = [];
 let isRecording        = false;
@@ -352,7 +300,6 @@ function showPage(name, btn) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   if (btn) btn.classList.add('active');
-  if (name === 'charts') loadAllCharts();
 }
 
 // ── Voice Recording ────────────────────────────────────────────────────────
@@ -562,9 +509,9 @@ async function submitTextQuery() {
     }
     addHistory(q, 'text', activeDatasetId);
   } catch(e) {
-  console.error("Chart Load Error:", e);
-  showToast('error', 'Failed to load charts. Check backend error.');
-}
+    document.getElementById('textAnswer').textContent = 'Error: ' + e.message;
+    showToast('error', 'Query failed. Check your connection.');
+  }
 }
 
 function redrawTextChart(type) {
@@ -576,75 +523,6 @@ function redrawTextChart(type) {
 }
 
 function setQuery(q) { document.getElementById('textQuestion').value = q; }
-
-// ── All Charts ─────────────────────────────────────────────────────────────
-async function loadAllCharts() {
-  console.log("Active Dataset:", activeDatasetId);
-  const res = await fetch(`/api/reports/summary/${activeDatasetId}`);
-console.log("Response status:", res.status);
-  if (!activeDatasetId) {
-    showToast('error', 'Select a dataset first.');
-    return;
-  }
-  try {
-    const res  = await fetch(`/api/reports/summary/${activeDatasetId}`);
-    const rpt  = await res.json();
-
-    const prev = await fetch(`/api/data/preview/${activeDatasetId}`);
-    const pdata = await prev.json();
-
-    document.getElementById('chartStatRows').textContent = (rpt.total_rows||0).toLocaleString();
-    document.getElementById('chartStatCols').textContent = rpt.total_columns||0;
-    const numKeys = Object.keys(rpt.numeric_summary||{});
-    const catKeys = Object.keys(rpt.text_summary||{});
-    document.getElementById('chartStatNum').textContent  = numKeys.length;
-    document.getElementById('chartStatCat').textContent  = catKeys.length;
-
-    // Chart 1 — bar of numeric cols summary
-    if (numKeys.length > 0) {
-      const vals = numKeys.map(k => rpt.numeric_summary[k].sum);
-      drawStaticChart('chart1', {labels:numKeys, datasets:[{label:'Total',data:vals}]}, 'bar');
-    }
-
-    // Chart 2 — line mock
-    if (numKeys.length > 0) {
-      const col  = numKeys[0];
-      const rows = pdata.preview || [];
-      const vals = rows.map(r => parseFloat(r[col])||0);
-      drawStaticChart('chart2', {
-        labels:   rows.map((_,i)=>'Row '+(i+1)),
-        datasets: [{label:col,data:vals}]
-      }, 'line');
-    }
-
-    // Chart 3 — pie of text col
-    if (catKeys.length > 0) {
-      const col = catKeys[0];
-      const s   = rpt.text_summary[col];
-      drawStaticChart('chart3', {
-        labels: [s.top_value,'Others'],
-        datasets:[{label:col,data:[s.top_count, (rpt.total_rows-s.top_count)]}]
-      }, 'pie');
-    }
-
-    // Chart 4 — bar sorted
-    if (numKeys.length > 0) {
-      const sorted = numKeys.map(k => ({ k, v: rpt.numeric_summary[k].mean })).sort((a,b)=>b.v-a.v);
-      drawStaticChart('chart4', {
-        labels:   sorted.map(s=>s.k),
-        datasets: [{label:'Mean',data:sorted.map(s=>s.v)}]
-      }, 'bar');
-    }
-  } catch(e) {
-    showToast('error', 'Could not load charts. Select a dataset first.');
-  }
-}
-
-function drawStaticChart(canvasId, data, type) {
-  if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
-  const ctx = document.getElementById(canvasId).getContext('2d');
-  chartInstances[canvasId] = buildChart(ctx, data, type);
-}
 
 // ── Report ─────────────────────────────────────────────────────────────────
 async function loadReport() {
