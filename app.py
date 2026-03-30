@@ -668,6 +668,10 @@ def api_send_email():
     data       = request.json or {}
     dataset_id = data.get("dataset_id", "")
     subject    = data.get("subject", "Phoenix Protocol - Report")
+    recipient  = data.get("email", "").strip()
+
+    if not recipient:
+        return jsonify({"error": "Recipient email is required"}), 400
 
     try:
         sns = get_aws_client("sns")
@@ -676,7 +680,16 @@ def api_send_email():
         if df is None:
             return jsonify({"error": "Dataset not found"}), 404
 
-        # ── Build full report content ──────────────────────────────────────
+        # ── Step 1: Subscribe the email to the topic dynamically ───────────
+        subscribe_response = sns.subscribe(
+            TopicArn=SNS_TOPIC_ARN,
+            Protocol="email",
+            Endpoint=recipient,
+            ReturnSubscriptionArn=True
+        )
+        subscription_arn = subscribe_response.get("SubscriptionArn", "")
+
+        # ── Step 2: Build full report content ──────────────────────────────
         numeric_cols = df.select_dtypes(include="number").columns.tolist()
         text_cols    = df.select_dtypes(include="object").columns.tolist()
 
@@ -696,7 +709,6 @@ def api_send_email():
             "-" * 50,
         ]
 
-        # Numeric column stats
         for col in numeric_cols[:5]:
             report_lines.append(f"\n[ {col} ]")
             report_lines.append(f"  Total   : {df[col].sum():,.2f}")
@@ -712,14 +724,12 @@ def api_send_email():
             "-" * 50,
         ]
 
-        # Text column stats
         for col in text_cols[:3]:
             vc = df[col].value_counts()
             report_lines.append(f"\n[ {col} ]")
             report_lines.append(f"  Unique Values : {df[col].nunique()}")
             if len(vc) > 0:
                 report_lines.append(f"  Top Value     : {vc.index[0]} ({vc.iloc[0]} times)")
-            # Top 5 values
             report_lines.append("  Distribution  :")
             for val, count in vc.head(5).items():
                 report_lines.append(f"    • {val}: {count}")
@@ -748,15 +758,23 @@ def api_send_email():
 
         message = "\n".join(report_lines)
 
-        # ── Publish to SNS ─────────────────────────────────────────────────
+        # ── Step 3: Check if already confirmed or pending ──────────────────
+        # If pending confirmation, warn the user
+        if subscription_arn == "pending confirmation":
+            return jsonify({
+                "success": False,
+                "message": f"⚠️ Confirmation email sent to {recipient}. They must confirm the subscription before receiving reports. Please ask them to check their inbox and confirm, then try again."
+            })
+
+        # ── Step 4: Publish the report to SNS ─────────────────────────────
         sns.publish(
             TopicArn=SNS_TOPIC_ARN,
             Subject=subject,
             Message=message
         )
 
-        log_audit(session["user_id"], "SEND_SNS", f"Published report for dataset: {dataset_id}")
-        return jsonify({"success": True, "message": "Report published to SNS topic"})
+        log_audit(session["user_id"], "SEND_SNS", f"Report sent to {recipient} for dataset: {dataset_id}")
+        return jsonify({"success": True, "message": f"Report successfully sent to {recipient}"})
 
     except Exception as e:
         return jsonify({"error": f"SNS publish failed: {str(e)}"}), 500
