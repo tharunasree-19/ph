@@ -30,7 +30,7 @@ AWS_REGION        = os.environ.get("AWS_REGION", "us-west-2")
 S3_BUCKET         = os.environ.get("S3_BUCKET", "phoenix-ecom-data-tharuna")
 DYNAMODB_TABLE    = os.environ.get("DYNAMODB_TABLE", "phoenix-users")
 SQS_QUEUE_URL     = os.environ.get("SQS_QUEUE_URL", "https://sqs.us-west-2.amazonaws.com/940482422578/phoenix-analysis-queue")
-SES_SENDER        = os.environ.get("SES_SENDER", "tharuna@thesmartbridge.com")
+SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "arn:aws:sns:us-west-2:940482422578:Phoenix")
 ELASTICACHE_HOST  = os.environ.get("ELASTICACHE_HOST", "localhost")
 ELASTICACHE_PORT  = int(os.environ.get("ELASTICACHE_PORT", 6379))
 
@@ -666,32 +666,28 @@ def api_export_csv(dataset_id):
 @permission_required("send_report")
 def api_send_email():
     data       = request.json or {}
-    recipient  = data.get("email", "")
     dataset_id = data.get("dataset_id", "")
     subject    = data.get("subject", "Phoenix Protocol - Report")
 
-    if not recipient:
-        return jsonify({"error": "Email required"}), 400
-
     try:
-        ses = get_aws_client("ses")
+        sns = get_aws_client("sns")
         df  = get_dataset(dataset_id)
-        body = f"Report generated at {datetime.utcnow().isoformat()} by {session.get('name')}"
-        if df is not None:
-            body += f"\n\nDataset: {dataset_id}\nRows: {len(df)}\nColumns: {', '.join(df.columns)}"
 
-        ses.send_email(
-            Source=SES_SENDER,
-            Destination={"ToAddresses": [recipient]},
-            Message={
-                "Subject": {"Data": subject},
-                "Body":    {"Text": {"Data": body}}
-            }
+        message = f"Report generated at {datetime.utcnow().isoformat()} by {session.get('name')}"
+        if df is not None:
+            message += f"\n\nDataset: {dataset_id}\nRows: {len(df)}\nColumns: {', '.join(df.columns)}"
+
+        sns.publish(
+            TopicArn=SNS_TOPIC_ARN,
+            Subject=subject,
+            Message=message
         )
-        log_audit(session["user_id"], "SEND_EMAIL", recipient)
-        return jsonify({"success": True, "message": f"Report sent to {recipient}"})
+
+        log_audit(session["user_id"], "SEND_SNS", f"Published to topic: {SNS_TOPIC_ARN}")
+        return jsonify({"success": True, "message": "Report published to SNS topic"})
+
     except Exception as e:
-        return jsonify({"error": f"Email send failed: {str(e)}"}), 500
+        return jsonify({"error": f"SNS publish failed: {str(e)}"}), 500
 
 # ─── Admin API ────────────────────────────────────────────────────────────────
 
