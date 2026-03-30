@@ -3,6 +3,10 @@ AWS Phoenix Protocol - Main Application
 Global E-Commerce Resilience Platform
 """
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 from flask import Flask, request, jsonify, session, redirect, url_for, render_template, send_file
 from flask_cors import CORS
 import boto3
@@ -33,6 +37,11 @@ SQS_QUEUE_URL     = os.environ.get("SQS_QUEUE_URL", "https://sqs.us-west-2.amazo
 SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "arn:aws:sns:us-west-2:940482422578:Phoenix")
 ELASTICACHE_HOST  = os.environ.get("ELASTICACHE_HOST", "localhost")
 ELASTICACHE_PORT  = int(os.environ.get("ELASTICACHE_PORT", 6379))
+# Add these to your config section
+SMTP_EMAIL    = os.environ.get("SMTP_EMAIL", "tharuna@thesmartbridge.com")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "bijc ucym mvpp xohq")  # app password
+SMTP_HOST     = "smtp.gmail.com"
+SMTP_PORT     = 587
 
 # ─── AWS Clients ──────────────────────────────────────────────────────────────
 def get_aws_client(service):
@@ -668,28 +677,17 @@ def api_send_email():
     data       = request.json or {}
     dataset_id = data.get("dataset_id", "")
     subject    = data.get("subject", "Phoenix Protocol - Report")
-    recipient  = data.get("email", "").strip()
-
-    if not recipient:
-        return jsonify({"error": "Recipient email is required"}), 400
 
     try:
-        sns = get_aws_client("sns")
-        df  = get_dataset(dataset_id)
+        df = get_dataset(dataset_id)
 
         if df is None:
             return jsonify({"error": "Dataset not found"}), 404
 
-        # ── Step 1: Subscribe the email to the topic dynamically ───────────
-        subscribe_response = sns.subscribe(
-            TopicArn=SNS_TOPIC_ARN,
-            Protocol="email",
-            Endpoint=recipient,
-            ReturnSubscriptionArn=True
-        )
-        subscription_arn = subscribe_response.get("SubscriptionArn", "")
+        # ── Get all user emails from DEMO_USERS ────────────────────────────
+        all_emails = [user["email"] for user in DEMO_USERS.values()]
 
-        # ── Step 2: Build full report content ──────────────────────────────
+        # ── Build full report content ───────────────────────────────────────
         numeric_cols = df.select_dtypes(include="number").columns.tolist()
         text_cols    = df.select_dtypes(include="object").columns.tolist()
 
@@ -756,28 +754,42 @@ def api_send_email():
             "=" * 50,
         ]
 
-        message = "\n".join(report_lines)
+        message_body = "\n".join(report_lines)
 
-        # ── Step 3: Check if already confirmed or pending ──────────────────
-        # If pending confirmation, warn the user
-        if subscription_arn == "pending confirmation":
-            return jsonify({
-                "success": False,
-                "message": f"⚠️ Confirmation email sent to {recipient}. They must confirm the subscription before receiving reports. Please ask them to check their inbox and confirm, then try again."
-            })
+        # ── Send email to all users via SMTP ───────────────────────────────
+        sent     = []
+        failed   = []
 
-        # ── Step 4: Publish the report to SNS ─────────────────────────────
-        sns.publish(
-            TopicArn=SNS_TOPIC_ARN,
-            Subject=subject,
-            Message=message
-        )
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
 
-        log_audit(session["user_id"], "SEND_SNS", f"Report sent to {recipient} for dataset: {dataset_id}")
-        return jsonify({"success": True, "message": f"Report successfully sent to {recipient}"})
+            for recipient in all_emails:
+                try:
+                    msg = MIMEMultipart()
+                    msg["From"]    = SMTP_EMAIL
+                    msg["To"]      = recipient
+                    msg["Subject"] = subject
+
+                    msg.attach(MIMEText(message_body, "plain"))
+                    server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
+                    sent.append(recipient)
+
+                except Exception as e:
+                    failed.append({"email": recipient, "error": str(e)})
+
+        log_audit(session["user_id"], "SEND_EMAIL",
+                  f"Report sent to {len(sent)} users via SMTP")
+
+        return jsonify({
+            "success" : True,
+            "message" : f"Report sent to {len(sent)} users",
+            "sent"    : sent,
+            "failed"  : failed
+        })
 
     except Exception as e:
-        return jsonify({"error": f"SNS publish failed: {str(e)}"}), 500
+        return jsonify({"error": f"Email send failed: {str(e)}"}), 500
 
 # ─── Admin API ────────────────────────────────────────────────────────────────
 
