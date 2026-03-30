@@ -392,17 +392,16 @@ def api_upload():
         else:
             df = pd.read_excel(f)
 
+        # Create folder if not exists
+        os.makedirs("datasets", exist_ok=True)
 
-   # Create folder if not exists
-   os.makedirs("datasets", exist_ok=True)
+        # Save file permanently
+        file_path = f"datasets/{dataset_id}.json"
+        df.to_json(file_path)
 
-   # Save file permanently
-   file_path = f"datasets/{dataset_id}.json"
-   df.to_json(file_path)
-
-   # Store file path instead of raw JSON
-   ANALYSIS_CACHE[dataset_id] = file_path
-   UPLOADED_DATASETS[dataset_id] = {
+        # Store file path instead of raw JSON
+        ANALYSIS_CACHE[dataset_id] = file_path
+        UPLOADED_DATASETS[dataset_id] = {
             "dataset_id":   dataset_id,
             "name":         dataset_name,
             "filename":     f.filename,
@@ -412,27 +411,28 @@ def api_upload():
             "uploaded_by":  session["user_id"],
             "uploaded_at":  datetime.utcnow().isoformat(),
             "size_kb":      round(df.memory_usage(deep=True).sum() / 1024, 2)
-   }
+        }
 
-   log_audit(session["user_id"], "UPLOAD", f"Dataset '{dataset_name}' ({len(df)} rows)")
-   # Simulate S3 upload notification
-   try:
-           s3 = get_aws_client("s3")
-           # s3.put_object(Bucket=S3_BUCKET, Key=f"datasets/{dataset_id}.json", Body=df.to_json())
-   except Exception:
-           pass  # Demo mode - S3 not required locally
+        log_audit(session["user_id"], "UPLOAD", f"Dataset '{dataset_name}' ({len(df)} rows)")
 
-   return jsonify({
+        # Simulate S3 upload notification
+        try:
+            s3 = get_aws_client("s3")
+            # s3.put_object(Bucket=S3_BUCKET, Key=f"datasets/{dataset_id}.json", Body=df.to_json())
+        except Exception:
+            pass  # Demo mode - S3 not required locally
+
+        return jsonify({
             "success":    True,
             "dataset_id": dataset_id,
             "name":       dataset_name,
             "rows":       len(df),
             "columns":    list(df.columns),
             "preview":    df.head(5).to_dict(orient="records")
-   })
+        })
 
-except Exception as e:
-     return jsonify({"error": f"Failed to parse file: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse file: {str(e)}"}), 500
 
 @app.route("/api/data/datasets")
 @login_required
@@ -585,25 +585,18 @@ import math
 def make_json_safe(obj):
     if isinstance(obj, dict):
         return {k: make_json_safe(v) for k, v in obj.items()}
-    
     elif isinstance(obj, list):
         return [make_json_safe(v) for v in obj]
-    
     elif isinstance(obj, (np.integer,)):
         return int(obj)
-    
     elif isinstance(obj, (np.floating,)):
-        # handle NaN
         if math.isnan(obj):
             return None
         return float(obj)
-    
     elif isinstance(obj, (np.ndarray,)):
         return obj.tolist()
-    
     elif obj is None:
         return None
-    
     return obj
 
 @app.route("/api/reports/summary/<dataset_id>")
@@ -625,7 +618,7 @@ def api_summary_report(dataset_id):
         "total_columns":   len(df.columns),
         "numeric_summary": {},
         "text_summary":    {},
-        "missing_values":  {k: int(v) for k, v in df.isnull().sum().to_dict().items()}  # ✅ fixed
+        "missing_values":  {k: int(v) for k, v in df.isnull().sum().to_dict().items()}
     }
 
     for col in numeric_cols[:5]:
@@ -646,7 +639,7 @@ def api_summary_report(dataset_id):
         }
 
     log_audit(session["user_id"], "EXPORT_REPORT", dataset_id)
-    return jsonify(make_json_safe(report))  # ✅ dangling line removed, only this remains
+    return jsonify(make_json_safe(report))
 
 @app.route("/api/reports/export/<dataset_id>")
 @login_required
@@ -735,13 +728,13 @@ def api_admin_stats():
 @app.route("/api/health")
 def api_health():
     return jsonify({
-        "status":         "healthy",
-        "service":        "AWS Phoenix Protocol",
-        "version":        "1.0.0",
-        "region":         AWS_REGION,
-        "cache_enabled":  CACHE_ENABLED,
+        "status":          "healthy",
+        "service":         "AWS Phoenix Protocol",
+        "version":         "1.0.0",
+        "region":          AWS_REGION,
+        "cache_enabled":   CACHE_ENABLED,
         "datasets_loaded": len(UPLOADED_DATASETS),
-        "timestamp":      datetime.utcnow().isoformat()
+        "timestamp":       datetime.utcnow().isoformat()
     })
 
 # ─── Error Handlers ───────────────────────────────────────────────────────────
