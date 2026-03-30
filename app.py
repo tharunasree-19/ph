@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 import redis
 from botocore.exceptions import ClientError
+import os
 
         
 app = Flask(__name__)
@@ -393,8 +394,7 @@ def api_upload():
             df = pd.read_csv(f)
         else:
             df = pd.read_excel(f)
-# Store in memory
-import os
+
 
 # Create folder if not exists
 os.makedirs("datasets", exist_ok=True)
