@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify, session, redirect, url_for, render_te
 from flask_cors import CORS
 import boto3
 import json
+from io import StringIO
 import os
 import uuid
 import hashlib
@@ -18,7 +19,6 @@ from datetime import datetime, timedelta
 from functools import wraps
 import redis
 from botocore.exceptions import ClientError
-import os
 
         
 app = Flask(__name__)
@@ -140,9 +140,6 @@ def log_audit(user_id, action, details=""):
     }
     QUERY_HISTORY.append(entry)
     return entry
-
-from io import StringIO
-import os
 
 def get_dataset(dataset_id):
     # 1. Check memory first
