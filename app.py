@@ -424,14 +424,18 @@ def api_upload():
 
         log_audit(session["user_id"], "UPLOAD", f"Dataset '{dataset_name}' ({len(df)} rows)")
 
-        # Simulate S3 upload notification
-        try:
-            s3 = get_aws_client("s3")
-            # s3.put_object(Bucket=S3_BUCKET, Key=f"datasets/{dataset_id}.json", Body=df.to_json())
-        except Exception:
-            pass  # Demo mode - S3 not required locally
+       try:
+               s3 = get_aws_client("s3")
+               s3.put_object(
+                       Bucket=S3_BUCKET,
+                       Key=f"datasets/{dataset_id}.json",
+                       Body=df.to_json(),
+                       ContentType="application/json"
+      )
+      except Exception as e:
+              print(f"S3 upload warning: {e}")  # log but don't fail
 
-        return jsonify({
+      return jsonify({
             "success":    True,
             "dataset_id": dataset_id,
             "name":       dataset_name,
